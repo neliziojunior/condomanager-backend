@@ -1,0 +1,159 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SYNDIC
+  RESIDENT
+  OWNER
+  ADMIN
+}
+
+enum UnitType {
+  APARTMENT
+  COMMERCIAL
+  STUDIO
+}
+
+enum CategoryType {
+  INCOME
+  EXPENSE
+}
+
+enum ExpenseStatus {
+  PENDING
+  PAID
+  OVERDUE
+}
+
+enum RequestStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model Condominium {
+  id          String            @id @default(uuid())
+  name        String
+  cnpj        String?
+  address     String
+  monthlyFee  Float?
+  createdAt   DateTime          @default(now())
+  units       Unit[]
+  categories  AccountCategory[]
+  expenses    Expense[]
+  incomes     Income[]
+  syndics     Person[]          @relation("SyndicOf")
+}
+
+model Unit {
+  id                  String               @id @default(uuid())
+  condominiumId       String
+  condominium         Condominium          @relation(fields: [condominiumId], references: [id])
+  number              String
+  floor               Int?
+  type                UnitType             @default(APARTMENT)
+  area                Float?
+  ownerId             String?
+  owner               Person?              @relation("UnitOwner", fields: [ownerId], references: [id])
+  residents           Person[]             @relation("ResidentUnit")
+  isActive            Boolean              @default(true)
+  expenses            Expense[]
+  incomes             Income[]
+  maintenanceRequests MaintenanceRequest[]
+}
+
+model Person {
+  id                  String               @id @default(uuid())
+  name                String
+  email               String               @unique
+  password            String
+  phone               String?
+  role                Role                 @default(RESIDENT)
+  unitId              String?
+  unit                Unit?                @relation("ResidentUnit", fields: [unitId], references: [id])
+  ownedUnits          Unit[]               @relation("UnitOwner")
+  syndicOfId          String?
+  syndicOf            Condominium?         @relation("SyndicOf", fields: [syndicOfId], references: [id])
+  maintenanceRequests MaintenanceRequest[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+}
+
+model AccountCategory {
+  id             String       @id @default(uuid())
+  condominiumId  String
+  condominium    Condominium  @relation(fields: [condominiumId], references: [id])
+  name           String
+  type           CategoryType
+  icon           String?
+  isDefault      Boolean      @default(false)
+  expenses       Expense[]
+  incomes        Income[]
+}
+
+model Expense {
+  id                       String          @id @default(uuid())
+  condominiumId            String
+  condominium              Condominium     @relation(fields: [condominiumId], references: [id])
+  unitId                   String?
+  unit                     Unit?           @relation(fields: [unitId], references: [id])
+  categoryId               String?
+  category                 AccountCategory? @relation(fields: [categoryId], references: [id])
+  description              String
+  amount                   Float
+  dueDate                  DateTime
+  paymentDate              DateTime?
+  status                   ExpenseStatus   @default(PENDING)
+  recurrence               String?
+  documentUrl              String?
+  aiCategorySuggestion     Json?
+  aiSuggestionConfirmed    Boolean?
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt
+}
+
+model Income {
+  id             String          @id @default(uuid())
+  condominiumId  String
+  condominium    Condominium     @relation(fields: [condominiumId], references: [id])
+  unitId         String
+  unit           Unit            @relation(fields: [unitId], references: [id])
+  categoryId     String
+  category       AccountCategory @relation(fields: [categoryId], references: [id])
+  description    String
+  amount         Float
+  paymentDate    DateTime
+  createdAt      DateTime        @default(now())
+}
+
+model MaintenanceRequest {
+  id          String        @id @default(uuid())
+  unitId      String
+  unit        Unit          @relation(fields: [unitId], references: [id])
+  requesterId String
+  requester   Person        @relation(fields: [requesterId], references: [id])
+  title       String
+  description String
+  priority    Priority      @default(MEDIUM)
+  status      RequestStatus @default(OPEN)
+  scheduledTo DateTime?
+  photos      String[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
