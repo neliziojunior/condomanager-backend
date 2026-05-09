@@ -163,3 +163,6 @@ comprovantes/
 
 # Next.js (se adicionar frontend depois)
 .next/
+# Docker volumes
+postgres_data/
+redis_data/
