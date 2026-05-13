@@ -1,7 +1,6 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { OpenaiService } from '../openai/openai.service';
-import { CreateExpenseDto, SuggestCategoryDto } from './dto';
 
 @Injectable()
 export class ExpenseService {
@@ -10,7 +9,7 @@ export class ExpenseService {
     private openaiService: OpenaiService,
   ) {}
 
-  async create(dto: CreateExpenseDto, condominiumId: string) {
+  async create(dto: any, condominiumId: string) {
     if (!dto.categoryId) {
       throw new BadRequestException('categoryId é obrigatório');
     }
@@ -24,21 +23,20 @@ export class ExpenseService {
         categoryId: dto.categoryId,
         unitId: dto.unitId,
       },
+      include: { category: true },
     });
 
     return expense;
   }
 
-  async suggestCategory(dto: SuggestCategoryDto, condominiumId: string) {
+  async suggestCategory(dto: any, condominiumId: string) {
     const categories = await this.prisma.accountCategory.findMany({
       where: { condominiumId, type: 'EXPENSE' },
       select: { id: true, name: true },
     });
 
     if (categories.length === 0) {
-      throw new BadRequestException(
-        'Nenhuma categoria de despesa cadastrada.',
-      );
+      throw new BadRequestException('Nenhuma categoria de despesa cadastrada.');
     }
 
     const suggestion = await this.openaiService.suggestCategory(
@@ -58,6 +56,35 @@ export class ExpenseService {
       where: { condominiumId },
       include: { category: true, unit: true },
       orderBy: { dueDate: 'desc' },
+    });
+  }
+
+  async attachDocument(id: string, fileUrl: string) {
+    const expense = await this.prisma.expense.findUnique({ where: { id } });
+    if (!expense) {
+      throw new NotFoundException('Despesa não encontrada');
+    }
+
+    return this.prisma.expense.update({
+      where: { id },
+      data: { documentUrl: fileUrl },
+      include: { category: true },
+    });
+  }
+
+  async markAsPaid(id: string, paymentDate: string) {
+    const expense = await this.prisma.expense.findUnique({ where: { id } });
+    if (!expense) {
+      throw new NotFoundException('Despesa não encontrada');
+    }
+
+    return this.prisma.expense.update({
+      where: { id },
+      data: {
+        status: 'PAID',
+        paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
+      },
+      include: { category: true },
     });
   }
 }

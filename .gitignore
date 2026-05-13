@@ -166,3 +166,4 @@ comprovantes/
 # Docker volumes
 postgres_data/
 redis_data/
+uploads/
