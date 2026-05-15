@@ -11,6 +11,13 @@ import { PackageModule } from './package/package.module';
 import { NoticeModule } from './notice/notice.module';
 import { ReservationModule } from './reservation/reservation.module';
 import { DocumentModule } from './document/document.module';
+import { OccurrenceModule } from './occurrence/occurrence.module';
+import { LostFoundModule } from './lostfound/lostfound.module';
+import { ChatbotModule } from './chatbot/chatbot.module';
+import { PollModule } from './poll/poll.module';
+import { ListingModule } from './listing/listing.module';
+import { VisitorModule } from './visitor/visitor.module';
+import { ChatModule } from './chat/chat.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -27,6 +34,13 @@ import { AppController } from './app.controller';
     NoticeModule,
     ReservationModule,
     DocumentModule,
+    OccurrenceModule,
+    LostFoundModule,
+    ChatbotModule,
+    PollModule,
+    ListingModule,
+    VisitorModule,
+    ChatModule,
   ],
   controllers: [AppController],
 })

@@ -1,11 +1,15 @@
 import { Controller, Get, Post, Delete, Body, Param, Req, UseGuards } from '@nestjs/common';
 import { UnitService } from './unit.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Controller('units')
 @UseGuards(JwtAuthGuard)
 export class UnitController {
-  constructor(private unitService: UnitService) {}
+  constructor(
+    private unitService: UnitService,
+    private prisma: PrismaService,
+  ) {}
 
   @Post()
   create(@Body() data: { number: string; floor?: number; type?: string; area?: number }, @Req() req) {
@@ -27,8 +31,35 @@ export class UnitController {
     return this.unitService.removeResident(personId);
   }
 
-  @Get(':id/residents')
-  getResidents(@Param('id') id: string) {
-    return this.unitService.getResidents(id);
+  // Pets
+  @Post('residents/:personId/pets')
+  addPet(@Param('personId') personId: string, @Body() data: { name: string; type?: string; breed?: string; color?: string }) {
+    return this.prisma.pet.create({ data: { ...data, personId } });
+  }
+
+  @Get('residents/:personId/pets')
+  getPets(@Param('personId') personId: string) {
+    return this.prisma.pet.findMany({ where: { personId } });
+  }
+
+  @Delete('pets/:id')
+  deletePet(@Param('id') id: string) {
+    return this.prisma.pet.delete({ where: { id } });
+  }
+
+  // Vehicles
+  @Post('residents/:personId/vehicles')
+  addVehicle(@Param('personId') personId: string, @Body() data: { brand: string; model: string; plate: string; color?: string; year?: number }) {
+    return this.prisma.vehicle.create({ data: { ...data, personId } });
+  }
+
+  @Get('residents/:personId/vehicles')
+  getVehicles(@Param('personId') personId: string) {
+    return this.prisma.vehicle.findMany({ where: { personId } });
+  }
+
+  @Delete('vehicles/:id')
+  deleteVehicle(@Param('id') id: string) {
+    return this.prisma.vehicle.delete({ where: { id } });
   }
 }

@@ -1,5 +1,3 @@
-// prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -48,21 +46,27 @@ enum Priority {
 }
 
 model Condominium {
-  id          String            @id @default(uuid())
-  name        String
-  cnpj        String?
-  address     String
-  monthlyFee  Float?
-  createdAt   DateTime          @default(now())
-  units       Unit[]
-  categories  AccountCategory[]
-  expenses    Expense[]
-  incomes     Income[]
-  syndics     Person[]          @relation("SyndicOf")
-   packages       Package[]     // ← JÁ ADICIONE ESTA LINHA AQUI
-     notices       Notice[]
-     spaces        Space[]
-    documents Document[]
+  id           String            @id @default(uuid())
+  name         String
+  cnpj         String?
+  address      String
+  monthlyFee   Float?
+  createdAt    DateTime          @default(now())
+  units        Unit[]
+  categories   AccountCategory[]
+  expenses     Expense[]
+  incomes      Income[]
+  syndics      Person[]          @relation("SyndicOf")
+  packages     Package[]
+  notices      Notice[]
+  spaces       Space[]
+  documents    Document[]
+  occurrences  Occurrence[]
+  lostFounds   LostFound[]
+  polls        Poll[]
+  listings     Listing[]
+  visitors     Visitor[]
+  chatMessages ChatMessage[]
 }
 
 model Unit {
@@ -80,8 +84,10 @@ model Unit {
   expenses            Expense[]
   incomes             Income[]
   maintenanceRequests MaintenanceRequest[]
-  packages       Package[]     // ← JÁ ADICIONE ESTA LINHA AQUI
-  reservations    Reservation[]
+  packages            Package[]
+  reservations        Reservation[]
+  occurrences         Occurrence[]
+  visitors            Visitor[]
 }
 
 model Person {
@@ -100,6 +106,14 @@ model Person {
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   reservations        Reservation[]
+  occurrences         Occurrence[]
+  pets                Pet[]
+  vehicles            Vehicle[]
+  lostFounds          LostFound[]
+  sentMessages        ChatMessage[]
+  receivedMessages    ChatMessage[]        @relation("Receiver")
+  listings            Listing[]
+  votes               Vote[]
 }
 
 model AccountCategory {
@@ -115,24 +129,24 @@ model AccountCategory {
 }
 
 model Expense {
-  id                       String          @id @default(uuid())
-  condominiumId            String
-  condominium              Condominium     @relation(fields: [condominiumId], references: [id])
-  unitId                   String?
-  unit                     Unit?           @relation(fields: [unitId], references: [id])
-  categoryId               String?
-  category                 AccountCategory? @relation(fields: [categoryId], references: [id])
-  description              String
-  amount                   Float
-  dueDate                  DateTime
-  paymentDate              DateTime?
-  status                   ExpenseStatus   @default(PENDING)
-  recurrence               String?
-  documentUrl              String?
-  aiCategorySuggestion     Json?
-  aiSuggestionConfirmed    Boolean?
-  createdAt                DateTime        @default(now())
-  updatedAt                DateTime        @updatedAt
+  id                    String          @id @default(uuid())
+  condominiumId         String
+  condominium           Condominium     @relation(fields: [condominiumId], references: [id])
+  unitId                String?
+  unit                  Unit?           @relation(fields: [unitId], references: [id])
+  categoryId            String?
+  category              AccountCategory? @relation(fields: [categoryId], references: [id])
+  description           String
+  amount                Float
+  dueDate               DateTime
+  paymentDate           DateTime?
+  status                ExpenseStatus   @default(PENDING)
+  recurrence            String?
+  documentUrl           String?
+  aiCategorySuggestion  Json?
+  aiSuggestionConfirmed Boolean?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
 }
 
 model Income {
@@ -166,21 +180,21 @@ model MaintenanceRequest {
 }
 
 model Package {
-  id             String        @id @default(uuid())
+  id             String      @id @default(uuid())
   condominiumId  String
-  condominium    Condominium   @relation(fields: [condominiumId], references: [id])
+  condominium    Condominium @relation(fields: [condominiumId], references: [id])
   unitId         String
-  unit           Unit          @relation(fields: [unitId], references: [id])
+  unit           Unit        @relation(fields: [unitId], references: [id])
   description    String
-  carrier        String?       // transportadora (Correios, Amazon, etc)
+  carrier        String?
   trackingCode   String?
-  arrivedAt      DateTime      @default(now())
+  arrivedAt      DateTime    @default(now())
   retrievedAt    DateTime?
-  retrievedBy    String?       // nome de quem retirou
-  status         String        @default("PENDING") // PENDING, RETRIEVED
+  retrievedBy    String?
+  status         String      @default("PENDING")
   notes          String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 }
 
 model Notice {
@@ -198,31 +212,31 @@ model Notice {
 }
 
 model Space {
-  id             String            @id @default(uuid())
+  id             String         @id @default(uuid())
   condominiumId  String
-  condominium    Condominium       @relation(fields: [condominiumId], references: [id])
+  condominium    Condominium    @relation(fields: [condominiumId], references: [id])
   name           String
   description    String?
   capacity       Int?
   price          Float?
-  isActive       Boolean           @default(true)
+  isActive       Boolean        @default(true)
   reservations   Reservation[]
 }
 
 model Reservation {
-  id          String      @id @default(uuid())
-  spaceId     String
-  space       Space       @relation(fields: [spaceId], references: [id])
-  unitId      String
-  unit        Unit        @relation(fields: [unitId], references: [id])
-  personId    String
-  person      Person      @relation(fields: [personId], references: [id])
-  date        DateTime
-  startTime   String
-  endTime     String
-  purpose     String?
-  status      String      @default("PENDING")
-  createdAt   DateTime    @default(now())
+  id        String   @id @default(uuid())
+  spaceId   String
+  space     Space    @relation(fields: [spaceId], references: [id])
+  unitId    String
+  unit      Unit     @relation(fields: [unitId], references: [id])
+  personId  String
+  person    Person   @relation(fields: [personId], references: [id])
+  date      DateTime
+  startTime String
+  endTime   String
+  purpose   String?
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
 }
 
 model Document {
@@ -234,4 +248,125 @@ model Document {
   fileUrl        String
   fileSize       Int?
   uploadedAt     DateTime    @default(now())
+}
+
+model Occurrence {
+  id             String      @id @default(uuid())
+  condominiumId  String
+  condominium    Condominium @relation(fields: [condominiumId], references: [id])
+  unitId         String?
+  unit           Unit?       @relation(fields: [unitId], references: [id])
+  personId       String
+  person         Person      @relation(fields: [personId], references: [id])
+  title          String
+  description    String
+  type           String      @default("COMPLAINT")
+  status         String      @default("OPEN")
+  response       String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+}
+
+model Pet {
+  id       String @id @default(uuid())
+  personId String
+  person   Person @relation(fields: [personId], references: [id])
+  name     String
+  type     String @default("DOG")
+  breed    String?
+  color    String?
+  photo    String?
+}
+
+model Vehicle {
+  id       String @id @default(uuid())
+  personId String
+  person   Person @relation(fields: [personId], references: [id])
+  brand    String
+  model    String
+  plate    String @unique
+  color    String?
+  year     Int?
+}
+
+model LostFound {
+  id             String      @id @default(uuid())
+  condominiumId  String
+  condominium    Condominium @relation(fields: [condominiumId], references: [id])
+  personId       String
+  person         Person      @relation(fields: [personId], references: [id])
+  title          String
+  description    String
+  type           String      @default("FOUND")
+  status         String      @default("OPEN")
+  location       String?
+  imageUrl       String?
+  createdAt      DateTime    @default(now())
+}
+
+model ChatMessage {
+  id             String      @id @default(uuid())
+  condominiumId  String
+  condominium    Condominium @relation(fields: [condominiumId], references: [id])
+  senderId       String
+  sender         Person      @relation(fields: [senderId], references: [id])
+  receiverId     String?
+  receiver       Person?     @relation("Receiver", fields: [receiverId], references: [id])
+  content        String
+  isGroup        Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+}
+
+model Poll {
+  id             String      @id @default(uuid())
+  condominiumId  String
+  condominium    Condominium @relation(fields: [condominiumId], references: [id])
+  title          String
+  description    String?
+  options        String[]
+  expiresAt      DateTime?
+  isActive       Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  votes          Vote[]
+}
+
+model Vote {
+  id        String   @id @default(uuid())
+  pollId    String
+  poll      Poll     @relation(fields: [pollId], references: [id])
+  personId  String
+  person    Person   @relation(fields: [personId], references: [id])
+  option    Int
+  createdAt DateTime @default(now())
+
+  @@unique([pollId, personId])
+}
+
+model Listing {
+  id             String      @id @default(uuid())
+  condominiumId  String
+  condominium    Condominium @relation(fields: [condominiumId], references: [id])
+  personId       String
+  person         Person      @relation(fields: [personId], references: [id])
+  title          String
+  description    String
+  price          Float?
+  type           String      @default("SERVICE")
+  status         String      @default("ACTIVE")
+  createdAt      DateTime    @default(now())
+}
+
+model Visitor {
+  id             String      @id @default(uuid())
+  condominiumId  String
+  condominium    Condominium @relation(fields: [condominiumId], references: [id])
+  unitId         String
+  unit           Unit        @relation(fields: [unitId], references: [id])
+  name           String
+  document       String?
+  reason         String?
+  entryAt        DateTime    @default(now())
+  exitAt         DateTime?
+  authorizedBy   String
+  status         String      @default("ACTIVE")
 }
