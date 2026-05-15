@@ -8,12 +8,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(private prisma: PrismaService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: process.env.JWT_SECRET || 'secret',
+      secretOrKey: process.env.JWT_SECRET || 'cond-super-secret-key-change-in-production-2024',
     });
   }
 
   async validate(payload: any) {
-    // Agora 'person' está disponível porque PrismaService estende PrismaClient
     const user = await this.prisma.person.findUnique({
       where: { id: payload.sub },
     });
@@ -22,12 +21,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Usuário não encontrado');
     }
 
-    // Retornamos os dados que serão injetados no req.user
+    // DEBUG: Ver se o syndicOfId existe
+    console.log('JWT Validate - User:', user.email, 'CondominiumId:', user.syndicOfId);
+
     return {
       id: user.id,
       email: user.email,
       role: user.role,
-      condominiumId: user.syndicOfId, // Essencial para as rotas de despesa
+      condominiumId: user.syndicOfId,
     };
   }
 }

@@ -59,6 +59,9 @@ model Condominium {
   expenses    Expense[]
   incomes     Income[]
   syndics     Person[]          @relation("SyndicOf")
+   packages       Package[]     // ← JÁ ADICIONE ESTA LINHA AQUI
+     notices       Notice[]
+     spaces        Space[]
 }
 
 model Unit {
@@ -76,6 +79,8 @@ model Unit {
   expenses            Expense[]
   incomes             Income[]
   maintenanceRequests MaintenanceRequest[]
+  packages       Package[]     // ← JÁ ADICIONE ESTA LINHA AQUI
+  reservations    Reservation[]
 }
 
 model Person {
@@ -93,6 +98,7 @@ model Person {
   maintenanceRequests MaintenanceRequest[]
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
+  reservations        Reservation[]
 }
 
 model AccountCategory {
@@ -156,4 +162,64 @@ model MaintenanceRequest {
   photos      String[]
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
+}
+
+model Package {
+  id             String        @id @default(uuid())
+  condominiumId  String
+  condominium    Condominium   @relation(fields: [condominiumId], references: [id])
+  unitId         String
+  unit           Unit          @relation(fields: [unitId], references: [id])
+  description    String
+  carrier        String?       // transportadora (Correios, Amazon, etc)
+  trackingCode   String?
+  arrivedAt      DateTime      @default(now())
+  retrievedAt    DateTime?
+  retrievedBy    String?       // nome de quem retirou
+  status         String        @default("PENDING") // PENDING, RETRIEVED
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model Notice {
+  id             String      @id @default(uuid())
+  condominiumId  String
+  condominium    Condominium @relation(fields: [condominiumId], references: [id])
+  title          String
+  content        String
+  category       String      @default("GENERAL")
+  priority       String      @default("NORMAL")
+  isActive       Boolean     @default(true)
+  expiresAt      DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+}
+
+model Space {
+  id             String            @id @default(uuid())
+  condominiumId  String
+  condominium    Condominium       @relation(fields: [condominiumId], references: [id])
+  name           String
+  description    String?
+  capacity       Int?
+  price          Float?
+  isActive       Boolean           @default(true)
+  reservations   Reservation[]
+}
+
+model Reservation {
+  id          String      @id @default(uuid())
+  spaceId     String
+  space       Space       @relation(fields: [spaceId], references: [id])
+  unitId      String
+  unit        Unit        @relation(fields: [unitId], references: [id])
+  personId    String
+  person      Person      @relation(fields: [personId], references: [id])
+  date        DateTime
+  startTime   String
+  endTime     String
+  purpose     String?
+  status      String      @default("PENDING")
+  createdAt   DateTime    @default(now())
 }

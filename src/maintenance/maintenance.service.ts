@@ -12,7 +12,6 @@ export class MaintenanceService {
     priority?: string;
     photos?: string[];
   }) {
-    // Buscar o síndico logado para registrar como solicitante
     const syndic = await this.prisma.person.findFirst({
       where: { syndicOfId: condominiumId, role: 'SYNDIC' }
     });
@@ -34,13 +33,18 @@ export class MaintenanceService {
   }
 
   async findAll(condominiumId: string, filters?: { status?: string; priority?: string; unitId?: string }) {
-    const where: any = {
-      unit: { condominiumId }
-    };
+    const where: any = {};
 
     if (filters?.status) where.status = filters.status;
     if (filters?.priority) where.priority = filters.priority;
     if (filters?.unitId) where.unitId = filters.unitId;
+
+    const units = await this.prisma.unit.findMany({
+      where: { condominiumId },
+      select: { id: true }
+    });
+    
+    where.unitId = { in: units.map(u => u.id) };
 
     return this.prisma.maintenanceRequest.findMany({
       where,
@@ -53,34 +57,16 @@ export class MaintenanceService {
   }
 
   async updateStatus(id: string, status: string) {
-    const validStatuses = ['OPEN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
-    if (!validStatuses.includes(status)) {
-      throw new BadRequestException('Status inválido');
-    }
-
     return this.prisma.maintenanceRequest.update({
       where: { id },
       data: { status: status as any },
-      include: {
-        unit: { select: { number: true } },
-        requester: { select: { name: true } },
-      },
     });
   }
 
   async updatePriority(id: string, priority: string) {
-    const validPriorities = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
-    if (!validPriorities.includes(priority)) {
-      throw new BadRequestException('Prioridade inválida');
-    }
-
     return this.prisma.maintenanceRequest.update({
       where: { id },
       data: { priority: priority as any },
-      include: {
-        unit: { select: { number: true } },
-        requester: { select: { name: true } },
-      },
     });
   }
 

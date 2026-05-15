@@ -33,11 +33,6 @@ export class MaintenanceController {
     return this.maintenanceService.updateStatus(id, status);
   }
 
-  @Put(':id/priority')
-  updatePriority(@Param('id') id: string, @Body('priority') priority: string) {
-    return this.maintenanceService.updatePriority(id, priority);
-  }
-
   @Delete(':id')
   delete(@Param('id') id: string) {
     return this.maintenanceService.delete(id);

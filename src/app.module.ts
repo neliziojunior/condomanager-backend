@@ -7,6 +7,9 @@ import { ExpenseModule } from './expense/expense.module';
 import { OpenaiModule } from './openai/openai.module';
 import { UnitModule } from './unit/unit.module';
 import { MaintenanceModule } from './maintenance/maintenance.module';
+import { PackageModule } from './package/package.module';
+import { NoticeModule } from './notice/notice.module';
+import { ReservationModule } from './reservation/reservation.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -19,6 +22,9 @@ import { AppController } from './app.controller';
     OpenaiModule,
     UnitModule,
     MaintenanceModule,
+    PackageModule,
+    NoticeModule,
+    ReservationModule,
   ],
   controllers: [AppController],
 })
