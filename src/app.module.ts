@@ -10,6 +10,7 @@ import { MaintenanceModule } from './maintenance/maintenance.module';
 import { PackageModule } from './package/package.module';
 import { NoticeModule } from './notice/notice.module';
 import { ReservationModule } from './reservation/reservation.module';
+import { DocumentModule } from './document/document.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -25,6 +26,7 @@ import { AppController } from './app.controller';
     PackageModule,
     NoticeModule,
     ReservationModule,
+    DocumentModule,
   ],
   controllers: [AppController],
 })

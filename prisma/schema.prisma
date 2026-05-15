@@ -62,6 +62,7 @@ model Condominium {
    packages       Package[]     // ← JÁ ADICIONE ESTA LINHA AQUI
      notices       Notice[]
      spaces        Space[]
+    documents Document[]
 }
 
 model Unit {
@@ -222,4 +223,15 @@ model Reservation {
   purpose     String?
   status      String      @default("PENDING")
   createdAt   DateTime    @default(now())
+}
+
+model Document {
+  id             String      @id @default(uuid())
+  condominiumId  String
+  condominium    Condominium @relation(fields: [condominiumId], references: [id])
+  title          String
+  category       String      @default("OTHER")
+  fileUrl        String
+  fileSize       Int?
+  uploadedAt     DateTime    @default(now())
 }
