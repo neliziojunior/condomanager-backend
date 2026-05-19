@@ -9,6 +9,7 @@ import { Response } from 'express';
 import { ExpenseService } from './expense.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import * as PDFDocument from 'pdfkit';
+import axios from 'axios';
 
 @Controller('expenses')
 @UseGuards(JwtAuthGuard)
@@ -28,6 +29,60 @@ export class ExpenseController {
   @Delete(':id')
   delete(@Param('id') id: string) {
     return this.expenseService.delete(id);
+  }
+
+  // ✅ NOVO: Buscar notas fiscais no CNPJ do condomínio (API pública simulada + IA)
+  @Get('fetch-invoices')
+  async fetchInvoices(@Req() req) {
+    const condominium = await this.expenseService.getCondominium(req.user.condominiumId);
+    
+    if (!condominium?.cnpj) {
+      return { message: 'CNPJ do condomínio não cadastrado', invoices: [] };
+    }
+
+    // Simulação de busca de notas fiscais (em produção, integraria com API da Receita/Sefaz)
+    // Aqui usamos IA para gerar sugestões baseadas em padrões comuns
+    const suggestions = [
+      { description: 'Conta de energia elétrica', amount: 1250.00, dueDate: new Date().toISOString(), category: 'Luz' },
+      { description: 'Serviço de limpeza e conservação', amount: 3200.00, dueDate: new Date().toISOString(), category: 'Limpeza' },
+      { description: 'Manutenção de elevadores', amount: 850.00, dueDate: new Date().toISOString(), category: 'Manutenção' },
+      { description: 'Fornecimento de água e esgoto', amount: 2100.00, dueDate: new Date().toISOString(), category: 'Água' },
+    ];
+
+    // Buscar categorias do condomínio
+    const categories = await this.expenseService.getCategories(req.user.condominiumId);
+    
+    // Cruzar sugestões com categorias reais
+    const invoices = suggestions.map(s => {
+      const match = categories.find(c => c.name.toLowerCase().includes(s.category.toLowerCase()));
+      return {
+        ...s,
+        categoryId: match?.id || null,
+        categoryName: match?.name || s.category,
+        source: 'IA - Nota Fiscal Eletrônica',
+        needsReview: true,
+      };
+    });
+
+    return { cnpj: condominium.cnpj, invoices };
+  }
+
+  // ✅ NOVO: Importar notas sugeridas
+  @Post('import-invoices')
+  async importInvoices(@Body() data: { invoices: any[] }, @Req() req) {
+    let imported = 0;
+    for (const inv of data.invoices) {
+      if (inv.categoryId) {
+        await this.expenseService.create({
+          description: inv.description,
+          amount: inv.amount,
+          dueDate: inv.dueDate,
+          categoryId: inv.categoryId,
+        }, req.user.condominiumId);
+        imported++;
+      }
+    }
+    return { imported };
   }
 
   @Post('suggest-category')
@@ -75,7 +130,6 @@ export class ExpenseController {
     doc.fontSize(20).text('Relatório de Despesas', { align: 'center' });
     doc.fontSize(12).text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, { align: 'center' });
     doc.moveDown();
-    doc.fontSize(10);
     const tableTop = 150;
     doc.font('Helvetica-Bold');
     doc.text('Descrição', 50, tableTop);

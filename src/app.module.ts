@@ -19,6 +19,8 @@ import { ListingModule } from './listing/listing.module';
 import { VisitorModule } from './visitor/visitor.module';
 import { ChatModule } from './chat/chat.module';
 import { AccountingModule } from './accounting/accounting.module'; // ✅ NOVO: AccountingModule
+import { SignatureModule } from './signature/signature.module';
+import { InventoryModule } from './inventory/inventory.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -43,6 +45,8 @@ import { AppController } from './app.controller';
     VisitorModule,
     ChatModule,
     AccountingModule, // ✅ NOVO: AccountingModule
+    SignatureModule,
+    InventoryModule,
   ],
   controllers: [AppController],
 })

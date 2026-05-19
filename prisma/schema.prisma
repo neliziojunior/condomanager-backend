@@ -68,6 +68,8 @@ model Condominium {
   visitors     Visitor[]
   chatMessages ChatMessage[]
   accountingEntries AccountingEntry[]
+  signatures   DocumentSignature[]
+  inventory    InventoryItem[]
 }
 
 model Unit {
@@ -115,6 +117,7 @@ model Person {
   receivedMessages    ChatMessage[]        @relation("Receiver")
   listings            Listing[]
   votes               Vote[]
+  signatures          DocumentSignature[]
 }
 
 model AccountCategory {
@@ -385,4 +388,31 @@ model AccountingEntry {
   difference     Float?      // Diferença entre sistema e contador
   notes          String?
   createdAt      DateTime    @default(now())
+}
+model DocumentSignature {
+  id             String    @id @default(uuid())
+  condominiumId  String
+  condominium    Condominium @relation(fields: [condominiumId], references: [id]) // ✅ Adicionar esta linha
+  documentId     String
+  personId       String
+  person         Person    @relation(fields: [personId], references: [id])
+  signatureData  String    // Base64
+  ip             String?
+  signedAt       DateTime  @default(now())
+}
+model InventoryItem {
+  id             String      @id @default(uuid())
+  condominiumId  String
+  condominium    Condominium @relation(fields: [condominiumId], references: [id])
+  name           String
+  category       String      @default("LIMPEZA")
+  quantity       Int         @default(0)
+  minQuantity    Int         @default(5)
+  unit           String      @default("un")
+  price          Float?
+  supplier       String?
+  lastPurchaseAt DateTime?
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 }

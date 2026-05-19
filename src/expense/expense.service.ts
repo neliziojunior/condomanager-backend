@@ -11,15 +11,10 @@ export class ExpenseService {
 
   async create(dto: any, condominiumId: string) {
     if (!dto.categoryId) throw new BadRequestException('categoryId é obrigatório');
-
     return this.prisma.expense.create({
       data: {
-        condominiumId,
-        description: dto.description,
-        amount: dto.amount,
-        dueDate: new Date(dto.dueDate),
-        categoryId: dto.categoryId,
-        unitId: dto.unitId,
+        condominiumId, description: dto.description, amount: dto.amount,
+        dueDate: new Date(dto.dueDate), categoryId: dto.categoryId, unitId: dto.unitId,
       },
       include: { category: true },
     });
@@ -28,15 +23,9 @@ export class ExpenseService {
   async update(id: string, dto: any) {
     const expense = await this.prisma.expense.findUnique({ where: { id } });
     if (!expense) throw new NotFoundException('Despesa não encontrada');
-
     return this.prisma.expense.update({
       where: { id },
-      data: {
-        description: dto.description,
-        amount: dto.amount,
-        dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
-        categoryId: dto.categoryId,
-      },
+      data: { description: dto.description, amount: dto.amount, dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined, categoryId: dto.categoryId },
       include: { category: true },
     });
   }
@@ -44,20 +33,21 @@ export class ExpenseService {
   async delete(id: string) {
     const expense = await this.prisma.expense.findUnique({ where: { id } });
     if (!expense) throw new NotFoundException('Despesa não encontrada');
-
     return this.prisma.expense.delete({ where: { id } });
   }
 
+  async getCondominium(id: string) {
+    return this.prisma.condominium.findUnique({ where: { id } });
+  }
+
+  async getCategories(condominiumId: string) {
+    return this.prisma.accountCategory.findMany({ where: { condominiumId, type: 'EXPENSE' } });
+  }
+
   async suggestCategory(dto: any, condominiumId: string) {
-    const categories = await this.prisma.accountCategory.findMany({
-      where: { condominiumId, type: 'EXPENSE' },
-      select: { id: true, name: true },
-    });
-
+    const categories = await this.getCategories(condominiumId);
     if (categories.length === 0) throw new BadRequestException('Nenhuma categoria cadastrada.');
-
     const suggestion = await this.openaiService.suggestCategory(dto.description, categories);
-
     return { description: dto.description, suggestion, availableCategories: categories };
   }
 
@@ -72,17 +62,12 @@ export class ExpenseService {
   async attachDocument(id: string, fileUrl: string) {
     const expense = await this.prisma.expense.findUnique({ where: { id } });
     if (!expense) throw new NotFoundException('Despesa não encontrada');
-
-    return this.prisma.expense.update({
-      where: { id },
-      data: { documentUrl: fileUrl },
-    });
+    return this.prisma.expense.update({ where: { id }, data: { documentUrl: fileUrl } });
   }
 
   async markAsPaid(id: string, paymentDate: string) {
     const expense = await this.prisma.expense.findUnique({ where: { id } });
     if (!expense) throw new NotFoundException('Despesa não encontrada');
-
     return this.prisma.expense.update({
       where: { id },
       data: { status: 'PAID', paymentDate: paymentDate ? new Date(paymentDate) : new Date() },

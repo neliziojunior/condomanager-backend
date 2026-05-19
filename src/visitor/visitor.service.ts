@@ -14,6 +14,14 @@ export class VisitorService {
     });
   }
 
+  // ✅ NOVO: Buscar por ID
+  async findById(id: string) {
+    return this.prisma.visitor.findUnique({
+      where: { id },
+      include: { unit: { select: { number: true } } },
+    });
+  }
+
   async findAll(condominiumId: string, status?: string) {
     const where: any = { condominiumId };
     if (status) where.status = status;
