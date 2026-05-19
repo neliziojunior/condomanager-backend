@@ -10,11 +10,9 @@ export class ExpenseService {
   ) {}
 
   async create(dto: any, condominiumId: string) {
-    if (!dto.categoryId) {
-      throw new BadRequestException('categoryId é obrigatório');
-    }
+    if (!dto.categoryId) throw new BadRequestException('categoryId é obrigatório');
 
-    const expense = await this.prisma.expense.create({
+    return this.prisma.expense.create({
       data: {
         condominiumId,
         description: dto.description,
@@ -25,8 +23,29 @@ export class ExpenseService {
       },
       include: { category: true },
     });
+  }
 
-    return expense;
+  async update(id: string, dto: any) {
+    const expense = await this.prisma.expense.findUnique({ where: { id } });
+    if (!expense) throw new NotFoundException('Despesa não encontrada');
+
+    return this.prisma.expense.update({
+      where: { id },
+      data: {
+        description: dto.description,
+        amount: dto.amount,
+        dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
+        categoryId: dto.categoryId,
+      },
+      include: { category: true },
+    });
+  }
+
+  async delete(id: string) {
+    const expense = await this.prisma.expense.findUnique({ where: { id } });
+    if (!expense) throw new NotFoundException('Despesa não encontrada');
+
+    return this.prisma.expense.delete({ where: { id } });
   }
 
   async suggestCategory(dto: any, condominiumId: string) {
@@ -35,20 +54,11 @@ export class ExpenseService {
       select: { id: true, name: true },
     });
 
-    if (categories.length === 0) {
-      throw new BadRequestException('Nenhuma categoria de despesa cadastrada.');
-    }
+    if (categories.length === 0) throw new BadRequestException('Nenhuma categoria cadastrada.');
 
-    const suggestion = await this.openaiService.suggestCategory(
-      dto.description,
-      categories,
-    );
+    const suggestion = await this.openaiService.suggestCategory(dto.description, categories);
 
-    return {
-      description: dto.description,
-      suggestion,
-      availableCategories: categories,
-    };
+    return { description: dto.description, suggestion, availableCategories: categories };
   }
 
   async findAll(condominiumId: string) {
@@ -61,30 +71,21 @@ export class ExpenseService {
 
   async attachDocument(id: string, fileUrl: string) {
     const expense = await this.prisma.expense.findUnique({ where: { id } });
-    if (!expense) {
-      throw new NotFoundException('Despesa não encontrada');
-    }
+    if (!expense) throw new NotFoundException('Despesa não encontrada');
 
     return this.prisma.expense.update({
       where: { id },
       data: { documentUrl: fileUrl },
-      include: { category: true },
     });
   }
 
   async markAsPaid(id: string, paymentDate: string) {
     const expense = await this.prisma.expense.findUnique({ where: { id } });
-    if (!expense) {
-      throw new NotFoundException('Despesa não encontrada');
-    }
+    if (!expense) throw new NotFoundException('Despesa não encontrada');
 
     return this.prisma.expense.update({
       where: { id },
-      data: {
-        status: 'PAID',
-        paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
-      },
-      include: { category: true },
+      data: { status: 'PAID', paymentDate: paymentDate ? new Date(paymentDate) : new Date() },
     });
   }
 }

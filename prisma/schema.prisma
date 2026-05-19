@@ -67,6 +67,7 @@ model Condominium {
   listings     Listing[]
   visitors     Visitor[]
   chatMessages ChatMessage[]
+  accountingEntries AccountingEntry[]
 }
 
 model Unit {
@@ -369,4 +370,19 @@ model Visitor {
   exitAt         DateTime?
   authorizedBy   String
   status         String      @default("ACTIVE")
+}
+model AccountingEntry {
+  id             String      @id @default(uuid())
+  condominiumId  String
+  condominium    Condominium @relation(fields: [condominiumId], references: [id])
+  description    String
+  amount         Float
+  date           DateTime
+  type           String      @default("EXPENSE")
+  source         String      @default("CONDONET") // CONDONET (sistema) ou ACCOUNTANT (contador)
+  reconciled     Boolean     @default(false)
+  originalId     String?     // ID do lançamento original (se importado)
+  difference     Float?      // Diferença entre sistema e contador
+  notes          String?
+  createdAt      DateTime    @default(now())
 }
