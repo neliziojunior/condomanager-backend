@@ -70,6 +70,7 @@ model Condominium {
   accountingEntries AccountingEntry[]
   signatures   DocumentSignature[]
   inventory    InventoryItem[]
+  assemblies   Assembly[]
 }
 
 model Unit {
@@ -118,6 +119,7 @@ model Person {
   listings            Listing[]
   votes               Vote[]
   signatures          DocumentSignature[]
+  assemblyConfirmations AssemblyConfirmation[]
 }
 
 model AccountCategory {
@@ -415,4 +417,27 @@ model InventoryItem {
   notes          String?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
+}
+model Assembly {
+  id             String           @id @default(uuid())
+  condominiumId  String
+  condominium    Condominium      @relation(fields: [condominiumId], references: [id])
+  title          String
+  description    String?
+  date           DateTime
+  location       String?
+  status         String           @default("SCHEDULED") // SCHEDULED, ONGOING, FINISHED
+  minutesUrl     String?          // URL da ata
+  createdAt      DateTime         @default(now())
+  confirmations  AssemblyConfirmation[]
+}
+
+model AssemblyConfirmation {
+  id          String    @id @default(uuid())
+  assemblyId  String
+  assembly    Assembly  @relation(fields: [assemblyId], references: [id])
+  personId    String
+  person      Person    @relation(fields: [personId], references: [id])
+  status      String    @default("PENDING") // PENDING, PRESENT, ABSENT
+  confirmedAt DateTime?
 }
