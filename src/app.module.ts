@@ -23,6 +23,8 @@ import { SignatureModule } from './signature/signature.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { AssemblyModule } from './assembly/assembly.module'; // ✅ NOVO: AssemblyModule
 import { PaymentModule } from './payment/payment.module';
+import { CondoScoreModule } from './condoscore/condoscore.module';
+import { CondoAIModule } from './condoai/condoai.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -51,6 +53,8 @@ import { AppController } from './app.controller';
     InventoryModule,
     AssemblyModule,
     PaymentModule,
+    CondoScoreModule,
+    CondoAIModule
   ],
   controllers: [AppController],
 })
