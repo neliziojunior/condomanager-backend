@@ -7,10 +7,8 @@ import * as jwt from 'jsonwebtoken';
 export class AuthService {
   constructor(private prisma: PrismaService) {}
 
-  async register(dto: { email: string; name: string; password: string }) {
-    const existing = await this.prisma.person.findUnique({
-      where: { email: dto.email },
-    });
+  async register(dto: { email: string; name: string; password: string; role?: string }) {
+    const existing = await this.prisma.person.findUnique({ where: { email: dto.email } });
     if (existing) throw new ConflictException('Email já cadastrado');
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
@@ -19,7 +17,7 @@ export class AuthService {
         name: dto.name,
         email: dto.email,
         password: hashedPassword,
-        role: 'SYNDIC',
+        role: (dto.role as any) || 'SYNDIC',
       },
     });
 
@@ -27,9 +25,7 @@ export class AuthService {
   }
 
   async login(dto: { email: string; password: string }) {
-    const person = await this.prisma.person.findUnique({
-      where: { email: dto.email },
-    });
+    const person = await this.prisma.person.findUnique({ where: { email: dto.email } });
     if (!person) throw new UnauthorizedException('Credenciais inválidas');
 
     const valid = await bcrypt.compare(dto.password, person.password);

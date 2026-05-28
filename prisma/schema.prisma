@@ -12,6 +12,7 @@ enum Role {
   RESIDENT
   OWNER
   ADMIN
+  STAFF
 }
 
 enum UnitType {
