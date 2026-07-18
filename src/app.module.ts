@@ -18,13 +18,14 @@ import { PollModule } from './poll/poll.module';
 import { ListingModule } from './listing/listing.module';
 import { VisitorModule } from './visitor/visitor.module';
 import { ChatModule } from './chat/chat.module';
-import { AccountingModule } from './accounting/accounting.module'; // ✅ NOVO: AccountingModule
+import { AccountingModule } from './accounting/accounting.module';
 import { SignatureModule } from './signature/signature.module';
 import { InventoryModule } from './inventory/inventory.module';
-import { AssemblyModule } from './assembly/assembly.module'; // ✅ NOVO: AssemblyModule
+import { AssemblyModule } from './assembly/assembly.module';
 import { PaymentModule } from './payment/payment.module';
 import { CondoScoreModule } from './condoscore/condoscore.module';
 import { CondoAIModule } from './condoai/condoai.module';
+import { EmployeeModule } from './employee/employee.module'; // ✅ NOVO
 import { AppController } from './app.controller';
 
 @Module({
@@ -48,13 +49,14 @@ import { AppController } from './app.controller';
     ListingModule,
     VisitorModule,
     ChatModule,
-    AccountingModule, // ✅ NOVO: AccountingModule
+    AccountingModule,
     SignatureModule,
     InventoryModule,
     AssemblyModule,
     PaymentModule,
     CondoScoreModule,
-    CondoAIModule
+    CondoAIModule,
+    EmployeeModule, // ✅ NOVO
   ],
   controllers: [AppController],
 })

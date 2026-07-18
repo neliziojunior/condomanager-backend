@@ -72,6 +72,7 @@ model Condominium {
   signatures   DocumentSignature[]
   inventory    InventoryItem[]
   assemblies   Assembly[]
+  employees    Employee[]
 }
 
 model Unit {
@@ -441,4 +442,56 @@ model AssemblyConfirmation {
   person      Person    @relation(fields: [personId], references: [id])
   status      String    @default("PENDING") // PENDING, PRESENT, ABSENT
   confirmedAt DateTime?
+}
+
+model Employee {
+  id                String      @id @default(uuid())
+  condominiumId     String
+  condominium       Condominium @relation(fields: [condominiumId], references: [id])
+  name              String
+  role              String
+  cpf               String?
+  pis               String?
+  ctps              String?
+  dataAdmissao      DateTime?
+  dataDemissao      DateTime?
+  status            String      @default("ATIVO")
+  
+  // Remuneração
+  salarioBase       Float       @default(0)
+  adicionalNoturno  Float       @default(0)
+  periculosidade    Float       @default(0) // 30% do salário base
+  insalubridade     Float       @default(0) // 10%, 20% ou 40% do salário mínimo
+  
+  // Benefícios
+  valeTransporte    Float       @default(0)
+  valeRefeicao      Float       @default(0)
+  planoSaude        Float       @default(0)
+  planoOdonto       Float       @default(0)
+  seguroVida        Float       @default(0)
+  
+  // Encargos (calculados)
+  fgtsPercentual    Float       @default(8) // 8% do salário
+  inssPercentual    Float       @default(0) // Tabela INSS
+  fgtsValor         Float       @default(0)
+  inssValor         Float       @default(0)
+  
+  // Variáveis
+  horasExtras       Float       @default(0)
+  faltas            Float       @default(0)
+  dsr               Float       @default(0) // Descanso Semanal Remunerado
+  
+  // Provisões
+  feriasProporcional Float      @default(0)
+  decimoTerceiro    Float       @default(0)
+  avisoPrevio       Float       @default(0)
+  multaFgts         Float       @default(0) // 40% em caso de demissão
+  
+  // Totais
+  totalProventos    Float       @default(0)
+  totalDescontos    Float       @default(0)
+  totalLiquido      Float       @default(0)
+  
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 }

@@ -6,105 +6,64 @@ export class CondoScoreService {
   constructor(private prisma: PrismaService) {}
 
   async calculateScore(condominiumId: string) {
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    // 1. Financeiro (40 pts) - Baseado em despesas pagas
+    const totalExpenses = await this.prisma.expense.count({ where: { condominiumId } });
+    const paidExpenses = await this.prisma.expense.count({ where: { condominiumId, status: 'PAID' } });
+    const financeScore = totalExpenses > 0 ? Math.round((paidExpenses / totalExpenses) * 40) : 40;
 
-    // 1. Saúde Financeira (40 pontos)
-    const totalExpenses = await this.prisma.expense.aggregate({
-      where: { condominiumId, createdAt: { gte: monthStart } },
-      _sum: { amount: true },
-    });
+    // 2. Manutenção (25 pts) - Baseado em chamados resolvidos
+    const totalMaintenance = await this.prisma.maintenanceRequest.count({ where: { unit: { condominiumId } } });
+    const resolvedMaintenance = await this.prisma.maintenanceRequest.count({ where: { unit: { condominiumId }, status: 'COMPLETED' } });
+    const maintenanceScore = totalMaintenance > 0 ? Math.round((resolvedMaintenance / totalMaintenance) * 25) : 25;
 
-    const paidExpenses = await this.prisma.expense.count({
-      where: { condominiumId, status: 'PAID', createdAt: { gte: monthStart } },
-    });
-
-    const totalExpenseCount = await this.prisma.expense.count({
-      where: { condominiumId, createdAt: { gte: monthStart } },
-    });
-
-    const paymentRate = totalExpenseCount > 0 ? (paidExpenses / totalExpenseCount) * 40 : 40;
-
-    // 2. Manutenção (25 pontos)
-    const totalMaintenance = await this.prisma.maintenanceRequest.count({
-      where: { unit: { condominiumId } },
-    });
-
-    const resolvedMaintenance = await this.prisma.maintenanceRequest.count({
-      where: { unit: { condominiumId }, status: 'COMPLETED' },
-    });
-
-    const maintenanceRate = totalMaintenance > 0 ? (resolvedMaintenance / totalMaintenance) * 25 : 25;
-
-    // 3. Participação Social (20 pontos)
-    const totalUnits = await this.prisma.unit.count({ where: { condominiumId } });
-    
-    const recentAssembly = await this.prisma.assembly.findFirst({
-      where: { condominiumId },
-      orderBy: { date: 'desc' },
-      include: { confirmations: true },
-    });
-
-    let participationRate = 20;
-    if (recentAssembly && totalUnits > 0) {
-      const present = recentAssembly.confirmations.filter(c => c.status === 'PRESENT').length;
-      participationRate = Math.min(20, (present / totalUnits) * 20);
-    }
-
-    // 4. Compliance (15 pontos)
+    // 3. Documentos (20 pts) - Baseado em documentos cadastrados
     const totalDocs = await this.prisma.document.count({ where: { condominiumId } });
-    const docsRate = Math.min(15, totalDocs * 3);
+    const docScore = Math.min(20, totalDocs * 5);
 
-    const totalScore = Math.round(paymentRate + maintenanceRate + participationRate + docsRate);
+    // 4. Social (15 pts) - Baseado em unidades cadastradas
+    const totalUnits = await this.prisma.unit.count({ where: { condominiumId } });
+    const socialScore = totalUnits > 0 ? 15 : 5;
 
-    // Categoria
-    let category = 'Regular';
-    let color = '#F0A500';
-    let emoji = '🟡';
-    let recommendations: string[] = [];
+    const totalScore = financeScore + maintenanceScore + docScore + socialScore;
 
-    if (totalScore >= 85) {
+    let category, color, emoji;
+    const recommendations = [];
+
+    if (totalScore >= 80) {
       category = 'Excelente';
       color = '#02C39A';
       emoji = '🟢';
-      recommendations = ['🏆 CondoPro Excellence! Seu condomínio é referência em gestão.'];
-    } else if (totalScore >= 70) {
+      recommendations.push('🏆 CondoPro Excellence! Seu condomínio é referência em gestão.');
+    } else if (totalScore >= 60) {
       category = 'Bom';
       color = '#00A896';
       emoji = '🔵';
-      recommendations = ['Continue assim! Foque em aumentar a participação em assembleias.'];
-    } else if (totalScore >= 50) {
+      recommendations.push('Continue assim! Mantenha as despesas em dia.');
+    } else if (totalScore >= 40) {
       category = 'Regular';
       color = '#F0A500';
       emoji = '🟡';
-      recommendations = [
-        'Atenção: Aumente a taxa de pagamento de despesas.',
-        'Considere fazer manutenções preventivas para reduzir chamados.',
-      ];
+      recommendations.push('Atenção: Quite as despesas pendentes para melhorar a pontuação.');
     } else {
       category = 'Crítico';
       color = '#E63946';
       emoji = '🔴';
-      recommendations = [
-        '⚠️ Urgente: Alta inadimplência detectada.',
-        '⚠️ Muitos chamados de manutenção em aberto.',
-        'Agende uma assembleia para discutir finanças.',
-      ];
+      recommendations.push('⚠️ Urgente: Regularize as finanças e manutenções.');
     }
 
     return {
       score: totalScore,
+      maxScore: 100,
       category,
       color,
       emoji,
       details: {
-        financeiro: Math.round(paymentRate),
-        manutencao: Math.round(maintenanceRate),
-        social: Math.round(participationRate),
-        compliance: Math.round(docsRate),
+        financeiro: financeScore,
+        manutencao: maintenanceScore,
+        documentos: docScore,
+        social: socialScore,
       },
       recommendations,
-      maxScore: 100,
     };
   }
 }

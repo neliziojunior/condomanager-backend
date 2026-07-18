@@ -1,0 +1,27 @@
+-- CreateTable
+CREATE TABLE "Employee" (
+    "id" TEXT NOT NULL,
+    "condominiumId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "role" TEXT NOT NULL,
+    "cpf" TEXT,
+    "pis" TEXT,
+    "salary" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "valeTransporte" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "valeRefeicao" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "planoOdon" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "fgts" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "inss" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "horasExtras" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "adicionais" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "descontos" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "total" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "status" TEXT NOT NULL DEFAULT 'ATIVO',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Employee_pkey" PRIMARY KEY ("id")
+);
+
+-- AddForeignKey
+ALTER TABLE "Employee" ADD CONSTRAINT "Employee_condominiumId_fkey" FOREIGN KEY ("condominiumId") REFERENCES "Condominium"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
