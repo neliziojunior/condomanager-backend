@@ -1,15 +1,12 @@
 import { Module } from '@nestjs/common';
 import { AccountingService } from './accounting.service';
 import { AccountingController } from './accounting.controller';
+import { FiscalObligationsService } from './fiscal-obligations.service';
 import { PrismaModule } from '../prisma/prisma.module';
-import { MulterModule } from '@nestjs/platform-express';
 
 @Module({
-  imports: [
-    PrismaModule,
-    MulterModule.register({ dest: './uploads/csv' }),
-  ],
+  imports: [PrismaModule],
   controllers: [AccountingController],
-  providers: [AccountingService],
+  providers: [AccountingService, FiscalObligationsService],
 })
 export class AccountingModule {}

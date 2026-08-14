@@ -1,11 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AccountingService {
   constructor(private prisma: PrismaService) {}
 
-  // Importar lançamentos do contador (via CSV ou JSON)
   async importEntries(condominiumId: string, entries: { description: string; amount: number; date: string; type?: string }[]) {
     let count = 0;
     for (const entry of entries) {
@@ -24,17 +23,12 @@ export class AccountingService {
     return { imported: count };
   }
 
-  // Sincronizar lançamentos do sistema
   async syncSystemEntries(condominiumId: string) {
     const expenses = await this.prisma.expense.findMany({ where: { condominiumId } });
     for (const exp of expenses) {
       await this.prisma.accountingEntry.upsert({
         where: { id: `system-${exp.id}` },
-        update: {
-          description: exp.description,
-          amount: exp.amount,
-          date: exp.dueDate,
-        },
+        update: { description: exp.description, amount: exp.amount, date: exp.dueDate },
         create: {
           id: `system-${exp.id}`,
           condominiumId,
@@ -50,7 +44,6 @@ export class AccountingService {
     return { synced: expenses.length };
   }
 
-  // Comparar e encontrar divergências
   async compareEntries(condominiumId: string) {
     const systemEntries = await this.prisma.accountingEntry.findMany({
       where: { condominiumId, source: 'CONDONET' },
@@ -76,17 +69,11 @@ export class AccountingService {
           });
           divergences.push({ system: sys, accountant: match, difference: diff });
         } else {
-          await this.prisma.accountingEntry.update({
-            where: { id: sys.id },
-            data: { reconciled: true, difference: 0, notes: 'OK' },
-          });
-          await this.prisma.accountingEntry.update({
-            where: { id: match.id },
-            data: { reconciled: true, difference: 0, notes: 'OK' },
-          });
+          await this.prisma.accountingEntry.update({ where: { id: sys.id }, data: { reconciled: true, difference: 0, notes: 'OK' } });
+          await this.prisma.accountingEntry.update({ where: { id: match.id }, data: { reconciled: true, difference: 0, notes: 'OK' } });
         }
       } else {
-        divergences.push({ system: sys, accountant: null, difference: sys.amount, notes: 'Não encontrado nos lançamentos do contador' });
+        divergences.push({ system: sys, accountant: null, difference: sys.amount, notes: 'Não encontrado no contador' });
       }
     }
 
@@ -112,6 +99,38 @@ export class AccountingService {
       reconciled,
       total,
       difference: (systemTotal._sum.amount || 0) - (accountantTotal._sum.amount || 0),
+    };
+  }
+
+  // ✅ NOVO: Relatório Anual
+  async getRelatorioAnual(condominiumId: string) {
+    const ano = new Date().getFullYear();
+    const expenses = await this.prisma.expense.findMany({
+      where: { condominiumId, createdAt: { gte: new Date(`${ano}-01-01`) } },
+      include: { category: true },
+    });
+
+    const meses = Array.from({ length: 12 }, (_, i) => i + 1);
+    const balancete = meses.map(mes => {
+      const despesasMes = expenses.filter(e => {
+        const d = new Date(e.createdAt);
+        return d.getMonth() + 1 === mes;
+      });
+      return {
+        mes,
+        total: despesasMes.reduce((sum, e) => sum + e.amount, 0),
+        categorias: despesasMes.reduce((acc: any, e) => {
+          const cat = e.category?.name || 'Outros';
+          acc[cat] = (acc[cat] || 0) + e.amount;
+          return acc;
+        }, {}),
+      };
+    });
+
+    return {
+      ano,
+      balancete,
+      totalAno: expenses.reduce((sum, e) => sum + e.amount, 0),
     };
   }
 }
