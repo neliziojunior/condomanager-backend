@@ -26,6 +26,7 @@ import { PaymentModule } from './payment/payment.module';
 import { CondoScoreModule } from './condoscore/condoscore.module';
 import { CondoAIModule } from './condoai/condoai.module';
 import { EmployeeModule } from './employee/employee.module'; // ✅ NOVO
+import { CompanyModule } from './company/company.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -56,7 +57,8 @@ import { AppController } from './app.controller';
     PaymentModule,
     CondoScoreModule,
     CondoAIModule,
-    EmployeeModule, // ✅ NOVO
+    EmployeeModule,
+    CompanyModule, // ✅ NOVO
   ],
   controllers: [AppController],
 })
