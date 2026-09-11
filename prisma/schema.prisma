@@ -53,6 +53,10 @@ model Condominium {
   address      String
   monthlyFee   Float?
   createdAt    DateTime          @default(now())
+	 // ✅ NOVOS CAMPOS - Configuração de Pagamento
+  asaasApiKey   String?
+  asaasWalletId String?
+  asaasEnabled  Boolean  @default(false)
   units        Unit[]
   categories   AccountCategory[]
   expenses     Expense[]
