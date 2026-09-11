@@ -23,52 +23,63 @@ export class CondominiumController {
     return this.condominiumService.getById(id);
   }
 
-  // ✅ Salvar configuração de pagamento
   @Put('payment-config')
   async updatePaymentConfig(
-    @Body() data: { asaasApiKey: string; asaasWalletId: string; asaasEnabled: boolean },
+    @Body() data: { provider: string; apiKey: string; walletId: string; enabled: boolean },
     @Req() req,
   ) {
     return this.condominiumService.updatePaymentConfig(req.user.condominiumId, data);
   }
 
-  // ✅ Testar conexão com Asaas (detecta sandbox ou produção automaticamente)
-  @Post('test-asaas')
-  async testAsaas(@Body('asaasApiKey') asaasApiKey: string) {
-    if (!asaasApiKey) {
-      throw new BadRequestException('API Key não informada');
-    }
-
-    // ✅ Detectar ambiente pela chave
-    // Chaves sandbox começam com $aact_hmlg_ ou $aact_YTU5...
-    const isSandbox = asaasApiKey.includes('hmlg') || asaasApiKey.includes('sandbox');
-    const baseUrl = isSandbox 
-      ? 'https://api-sandbox.asaas.com/v3' 
-      : 'https://api.asaas.com/v3';
+  // ✅ Testar conexão (detecta sandbox automaticamente)
+  @Post('test-payment')
+  async testPayment(@Body() data: { provider: string; apiKey: string }) {
+    const { provider, apiKey } = data;
+    
+    if (!apiKey) throw new BadRequestException('API Key não informada');
 
     try {
-      const response = await axios.get(`${baseUrl}/customers`, {
-        headers: { 
-          'access_token': asaasApiKey,
-          'Content-Type': 'application/json',
-        },
-        params: { limit: 1 },
-        timeout: 10000,
-      });
+      if (provider === 'ASAAS') {
+        // ✅ Detecta sandbox pelo prefixo $aact_hmlg_
+        const isSandbox = apiKey.includes('hmlg') || apiKey.includes('sandbox');
+        const baseUrl = isSandbox 
+          ? 'https://api-sandbox.asaas.com/v3' 
+          : 'https://api.asaas.com/v3';
+        
+        console.log(`🔍 Testando Asaas em ${isSandbox ? 'SANDBOX' : 'PRODUÇÃO'}: ${baseUrl}`);
+        
+        const response = await axios.get(`${baseUrl}/customers`, {
+          headers: { 
+            'access_token': apiKey,
+            'Content-Type': 'application/json',
+          },
+          params: { limit: 1 },
+          timeout: 10000,
+        });
+        
+        return { 
+          success: true, 
+          message: `Conexão OK (${isSandbox ? 'Sandbox' : 'Produção'})`,
+          ambiente: isSandbox ? 'SANDBOX' : 'PRODUCAO',
+          totalClientes: response.data.totalCount || 0,
+        };
+      }
       
-      return { 
-        success: true, 
-        message: `Conexão OK (${isSandbox ? 'Sandbox' : 'Produção'})`,
-        ambiente: isSandbox ? 'SANDBOX' : 'PRODUCAO',
-      };
+      if (provider === 'PJBank') {
+        return { success: true, message: 'PJBank configurado (validação manual)' };
+      }
+
+      return { success: true, message: `Provedor ${provider} configurado` };
     } catch (error: any) {
+      console.error('Erro Asaas:', error.response?.data || error.message);
+      
       const status = error.response?.status;
       const message = error.response?.data?.errors?.[0]?.description 
-        || error.message 
-        || 'Erro desconhecido';
+        || error.response?.data?.message
+        || error.message;
       
       throw new BadRequestException(
-        `Falha ao conectar (${status || 'sem resposta'}): ${message}`
+        `Falha ao conectar (${status}): ${message}`
       );
     }
   }
