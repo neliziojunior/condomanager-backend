@@ -453,50 +453,103 @@ model Employee {
   id                String      @id @default(uuid())
   condominiumId     String
   condominium       Condominium @relation(fields: [condominiumId], references: [id])
+  
+  // 📋 DADOS PESSOAIS (Padrão CTPS)
   name              String
-  role              String
+  dataNascimento    DateTime?
+  localNascimento   String?
+  pais              String      @default("BRASIL")
+  estadoCivil       String?
+  nomeMae           String?
+  nomePai           String?
+  grauInstrucao     String?
+  sexo              String?
+  deficiencia       Boolean     @default(false)
+  deficienciaTipo   String?
+  
+  // 📄 DOCUMENTOS
   cpf               String?
   pis               String?
-  ctps              String?
+  ctpsNumero        String?
+  ctpsSerie         String?
+  ctpsUf            String?
+  rg                String?
+  rgEmissor         String?
+  tituloEleitor     String?
+  
+  // 🏠 RESIDÊNCIA
+  endereco          String?
+  cidade            String?
+  uf                String?
+  cep               String?
+  telefone          String?
+  celular           String?
+  
+  // 💼 DADOS DO CONTRATO
+  cargo             String
+  funcao            String?
+  cbo               String?
   dataAdmissao      DateTime?
   dataDemissao      DateTime?
+  salarioBase       Float       @default(0)
+  horarioTrabalho   String?
+  horarioIntervalo  String?
+  opcaoFgts         DateTime?
   status            String      @default("ATIVO")
   
-  // Remuneração
-  salarioBase       Float       @default(0)
+  // ⚙️ ADICIONAIS (CLT)
+  periculosidade    Float       @default(0)
   adicionalNoturno  Float       @default(0)
-  periculosidade    Float       @default(0) // 30% do salário base
-  insalubridade     Float       @default(0) // 10%, 20% ou 40% do salário mínimo
+  insalubridade     Float       @default(0)
+  grauInsalubridade String?
   
-  // Benefícios
+  // 🎁 BENEFÍCIOS
   valeTransporte    Float       @default(0)
   valeRefeicao      Float       @default(0)
   planoSaude        Float       @default(0)
   planoOdonto       Float       @default(0)
-  seguroVida        Float       @default(0)
+  planoSaudeCobertura Int       @default(100)
+  planoOdontoCobertura Int      @default(100)
   
-  // Encargos (calculados)
-  fgtsPercentual    Float       @default(8) // 8% do salário
-  inssPercentual    Float       @default(0) // Tabela INSS
-  fgtsValor         Float       @default(0)
-  inssValor         Float       @default(0)
-  
-  // Variáveis
-  horasExtras       Float       @default(0)
+  // ⏰ VARIÁVEIS
+  horasExtras50     Float       @default(0)
+  horasExtras100    Float       @default(0)
   faltas            Float       @default(0)
-  dsr               Float       @default(0) // Descanso Semanal Remunerado
+  dsr               Float       @default(0)
   
-  // Provisões
-  feriasProporcional Float      @default(0)
-  decimoTerceiro    Float       @default(0)
-  avisoPrevio       Float       @default(0)
-  multaFgts         Float       @default(0) // 40% em caso de demissão
+  // 📊 ENCARGOS EMPRESA
+  fgtsEmpresa       Float       @default(0)
+  inssEmpresa       Float       @default(0)
+  rat               Float       @default(0)
+  terceiros         Float       @default(0)
   
-  // Totais
+  // 📊 DESCONTOS FUNCIONÁRIO
+  inssFuncionario   Float       @default(0)
+  irrf              Float       @default(0)
+  pensaoAlimenticia Float       @default(0)
+  adiantamento      Float       @default(0)
+  
+  // 🧮 PROVISÕES
+  provisaoFerias    Float       @default(0)
+  provisao13        Float       @default(0)
+  provisaoFgtsFerias Float      @default(0)
+  provisaoFgts13    Float       @default(0)
+  provisaoInssFerias Float      @default(0)
+  provisaoInss13    Float       @default(0)
+  
+  // 💵 TOTAIS
   totalProventos    Float       @default(0)
   totalDescontos    Float       @default(0)
   totalLiquido      Float       @default(0)
+  custoTotalEmpresa Float       @default(0)
   
+  // 🌴 FÉRIAS
+  feriasVencidas    Boolean     @default(false)
+  feriasPeriodos    Json?       // [{aquisitivo: "...", gozo: "..."}]
+  
+  // 📅 OUTROS
+  competencia       String?
+  observacoes       String?
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 }
