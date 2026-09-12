@@ -44,22 +44,49 @@ export class CondominiumService {
 
   async findByUser(userId: string) {
     const user = await this.prisma.person.findUnique({ where: { id: userId } });
-    if (!user?.syndicOfId) return null;
+    if (!user) return null;
 
-    const condominium = await this.prisma.condominium.findUnique({
-      where: { id: user.syndicOfId },
-      include: { categories: true, units: true },
-    });
+    if (user.syndicOfId) {
+      const condominium = await this.prisma.condominium.findUnique({
+        where: { id: user.syndicOfId },
+        include: { categories: true, units: true },
+      });
 
-    // ✅ Não enviar a API Key para o frontend (segurança)
-    if (condominium) {
-      return {
-        ...condominium,
-        asaasApiKey: condominium.asaasApiKey ? '••••••••••' : null,
-      };
+      if (condominium) {
+        return {
+          ...condominium,
+          paymentApiKey: condominium.paymentApiKey ? '••••••••••' : null,
+        };
+      }
     }
 
-    return condominium;
+    // Auto-recuperação
+    if (user.role === 'SYNDIC' || user.role === 'ADMIN') {
+      const existingCondo = await this.prisma.condominium.findFirst({
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (existingCondo) {
+        await this.prisma.person.update({
+          where: { id: userId },
+          data: { syndicOfId: existingCondo.id },
+        });
+
+        const condominium = await this.prisma.condominium.findUnique({
+          where: { id: existingCondo.id },
+          include: { categories: true, units: true },
+        });
+
+        if (condominium) {
+          return {
+            ...condominium,
+            paymentApiKey: condominium.paymentApiKey ? '••••••••••' : null,
+          };
+        }
+      }
+    }
+
+    return null;
   }
 
   async getById(id: string) {
@@ -69,11 +96,11 @@ export class CondominiumService {
     });
   }
 
-  // ✅ NOVO: Atualizar configuração de pagamento
   async updatePaymentConfig(condominiumId: string, data: {
-    asaasApiKey: string;
-    asaasWalletId: string;
-    asaasEnabled: boolean;
+    provider: string;
+    apiKey: string;
+    walletId: string;
+    enabled: boolean;
   }) {
     const condominium = await this.prisma.condominium.findUnique({
       where: { id: condominiumId },
@@ -81,17 +108,17 @@ export class CondominiumService {
     
     if (!condominium) throw new NotFoundException('Condomínio não encontrado');
 
-    // Se a chave contém • (mascarada), manter a existente
-    const apiKey = data.asaasApiKey?.includes('•') 
-      ? condominium.asaasApiKey 
-      : data.asaasApiKey;
+    const apiKey = data.apiKey?.includes('•') 
+      ? condominium.paymentApiKey 
+      : data.apiKey;
 
     return this.prisma.condominium.update({
       where: { id: condominiumId },
       data: {
-        asaasApiKey: apiKey,
-        asaasWalletId: data.asaasWalletId,
-        asaasEnabled: data.asaasEnabled,
+        paymentProvider: data.provider,
+        paymentApiKey: apiKey,
+        paymentWalletId: data.walletId,
+        paymentEnabled: data.enabled,
       },
     });
   }
