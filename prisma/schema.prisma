@@ -84,6 +84,7 @@ model Condominium {
   inventory    InventoryItem[]
   assemblies   Assembly[]
   employees    Employee[]
+  payments     Payment[]
 }
 
 model Unit {
@@ -106,6 +107,7 @@ model Unit {
   reservations        Reservation[]
   occurrences         Occurrence[]
   visitors            Visitor[]
+  payments            Payment[]
 }
 
 model Person {
@@ -134,6 +136,7 @@ model Person {
   votes               Vote[]
   signatures          DocumentSignature[]
   assemblyConfirmations AssemblyConfirmation[]
+  asaasCustomerId     String?
 }
 
 model AccountCategory {
@@ -559,4 +562,25 @@ model Employee {
   observacoes       String?
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
+}
+
+model Payment {
+  id             String      @id @default(uuid())
+  condominiumId  String
+  condominium    Condominium @relation(fields: [condominiumId], references: [id])
+  unitId         String
+  unit           Unit        @relation(fields: [unitId], references: [id])
+  description    String
+  amount         Float
+  dueDate        DateTime
+  paymentDate    DateTime?
+  type           String      @default("PIX") // PIX ou BOLETO
+  status         String      @default("PENDING")
+  asaasId        String?     @unique
+  invoiceUrl     String?
+  bankSlipUrl    String?
+  pixQrCode      String?     @db.Text
+  pixCopiaCola   String?     @db.Text
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 }
