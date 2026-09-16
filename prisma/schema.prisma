@@ -16,9 +16,15 @@ enum Role {
 }
 
 enum UnitType {
-  APARTMENT
-  COMMERCIAL
-  STUDIO
+  APARTMENT    // Apartamento
+  STUDIO       // Studio/Kitnet
+  COMMERCIAL   // Comercial/Sala
+  HOUSE        // Casa
+  LAND         // Terreno
+  GARAGE       // Vaga de garagem
+  STORAGE      // Depósito
+  OTHER        // Outro
+
 }
 
 enum CategoryType {
