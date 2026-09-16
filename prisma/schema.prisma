@@ -97,6 +97,7 @@ model Unit {
   ownerId             String?
   owner               Person?              @relation("UnitOwner", fields: [ownerId], references: [id])
   residents           Person[]             @relation("ResidentUnit")
+
   isActive            Boolean              @default(true)
   expenses            Expense[]
   incomes             Income[]
