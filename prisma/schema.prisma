@@ -87,6 +87,7 @@ model Condominium {
   payments     Payment[]
   companyId    String?
   company      Company?  @relation(fields: [companyId], references: [id])
+  bankStatements BankStatement[]
 }
 
 model Unit {
@@ -153,6 +154,7 @@ model AccountCategory {
   isDefault      Boolean      @default(false)
   expenses       Expense[]
   incomes        Income[]
+  statementEntries StatementEntry[]
 }
 
 model Expense {
@@ -610,4 +612,39 @@ model CompanyUser {
   person     Person    @relation(fields: [personId], references: [id])
   role       String    @default("MEMBER") // OWNER, ADMIN, MEMBER, ACCOUNTANT
   createdAt  DateTime  @default(now())
+}
+model BankStatement {
+  id             String      @id @default(uuid())
+  condominiumId  String
+  condominium    Condominium @relation(fields: [condominiumId], references: [id])
+  fileName       String
+  fileUrl        String
+  fileType       String      // PDF, IMAGE, XLSX, CSV, OFX
+  bankName       String?
+  periodStart    DateTime?
+  periodEnd      DateTime?
+  status         String      @default("PROCESSING") // PROCESSING, REVIEW, APPROVED
+  processedAt    DateTime?
+  approvedAt     DateTime?
+  totalEntries   Int         @default(0)
+  entries        StatementEntry[]
+  createdAt      DateTime    @default(now())
+}
+
+model StatementEntry {
+  id             String        @id @default(uuid())
+  statementId    String
+  statement      BankStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  date           DateTime
+  amount         Float
+  description    String
+  type           String        // CREDIT, DEBIT
+  aiCategory     String?
+  aiConfidence   Float?
+  aiMatched      Boolean       @default(false)
+  categoryId     String?
+  category       AccountCategory? @relation(fields: [categoryId], references: [id])
+  approved       Boolean       @default(false)
+  notes          String?
+  createdAt      DateTime      @default(now())
 }
