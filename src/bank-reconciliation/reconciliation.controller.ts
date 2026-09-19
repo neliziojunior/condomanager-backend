@@ -46,6 +46,14 @@ export class ReconciliationController {
   findById(@Param('id') id: string) {
     return this.reconciliationService.findById(id);
   }
+  
+  @Post(':id/entries')
+addManualEntry(
+  @Param('id') id: string,
+  @Body() data: { date: string; amount: number; description: string; type: string; categoryId?: string },
+) {
+  return this.reconciliationService.addManualEntry(id, data);
+}
 
   @Put('entries/:entryId')
   updateEntry(@Param('entryId') entryId: string, @Body() data: any) {

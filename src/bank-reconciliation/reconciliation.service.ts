@@ -1,139 +1,124 @@
-
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import OpenAI from 'openai';
-import axios from 'axios';
 
 @Injectable()
 export class ReconciliationService {
   private openai: OpenAI;
+  private hasAI: boolean;
 
   constructor(private prisma: PrismaService) {
-    this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'sk-placeholder' });
+    const key = process.env.OPENAI_API_KEY || '';
+    this.hasAI = !!key && !key.includes('placeholder') && key.startsWith('sk-');
+    this.openai = new OpenAI({ apiKey: key || 'sk-placeholder' });
   }
 
-  // 📤 Processar extrato (upload)
   async processStatement(condominiumId: string, fileUrl: string, fileName: string, fileType: string) {
-    // 1. Criar registro inicial
     const statement = await this.prisma.bankStatement.create({
-      data: {
-        condominiumId,
-        fileUrl,
-        fileName,
-        fileType,
-        status: 'PROCESSING',
-      },
+      data: { condominiumId, fileUrl, fileName, fileType, status: 'PROCESSING' },
     });
 
     try {
-      // 2. Extrair lançamentos via IA
-      const entries = await this.extractEntriesWithAI(fileUrl, fileType);
+      if (this.hasAI) {
+        const entries = await this.extractEntriesWithAI(fileUrl, fileType);
 
-      // 3. Salvar lançamentos
-      for (const entry of entries.entries) {
-        await this.prisma.statementEntry.create({
+        for (const entry of entries.entries) {
+          await this.prisma.statementEntry.create({
+            data: {
+              statementId: statement.id,
+              date: new Date(entry.date),
+              amount: entry.amount,
+              description: entry.description,
+              type: entry.type,
+            },
+          });
+        }
+
+        await this.prisma.bankStatement.update({
+          where: { id: statement.id },
           data: {
-            statementId: statement.id,
-            date: new Date(entry.date),
-            amount: entry.amount,
-            description: entry.description,
-            type: entry.type,
+            status: 'REVIEW',
+            bankName: entries.bank,
+            periodStart: entries.periodStart ? new Date(entries.periodStart) : null,
+            periodEnd: entries.periodEnd ? new Date(entries.periodEnd) : null,
+            totalEntries: entries.entries.length,
+            processedAt: new Date(),
           },
         });
+
+        await this.classifyEntries(statement.id, condominiumId);
+      } else {
+        await this.prisma.bankStatement.update({
+          where: { id: statement.id },
+          data: { status: 'REVIEW', bankName: 'Manual', processedAt: new Date() },
+        });
       }
-
-      // 4. Atualizar status
-      await this.prisma.bankStatement.update({
-        where: { id: statement.id },
-        data: {
-          status: 'REVIEW',
-          bankName: entries.bank,
-          periodStart: entries.periodStart ? new Date(entries.periodStart) : null,
-          periodEnd: entries.periodEnd ? new Date(entries.periodEnd) : null,
-          totalEntries: entries.entries.length,
-          processedAt: new Date(),
-        },
-      });
-
-      // 5. Classificar automaticamente
-      await this.classifyEntries(statement.id, condominiumId);
 
       return this.findById(statement.id);
     } catch (error) {
       await this.prisma.bankStatement.update({
         where: { id: statement.id },
-        data: { status: 'ERROR' },
+        data: { status: 'REVIEW', bankName: 'Manual', processedAt: new Date() },
       });
-      throw new BadRequestException(`Erro ao processar extrato: ${error.message}`);
+      return this.findById(statement.id);
     }
   }
 
-  // 🤖 IA extrai lançamentos
+  async addManualEntry(statementId: string, data: {
+    date: string; amount: number; description: string; type: string; categoryId?: string;
+  }) {
+    const entry = await this.prisma.statementEntry.create({
+      data: {
+        statementId,
+        date: new Date(data.date),
+        amount: data.amount,
+        description: data.description,
+        type: data.type,
+        categoryId: data.categoryId,
+        approved: true,
+      },
+    });
+
+    const count = await this.prisma.statementEntry.count({ where: { statementId } });
+    await this.prisma.bankStatement.update({
+      where: { id: statementId },
+      data: { totalEntries: count },
+    });
+
+    return entry;
+  }
+
   private async extractEntriesWithAI(fileUrl: string, fileType: string) {
-    const prompt = `Você é um assistente contábil especializado em extratos bancários brasileiros.
+    const prompt = `Você é um assistente contábil. Analise o extrato e extraia TODOS os lançamentos.
 
-Analise o extrato e extraia TODOS os lançamentos.
+Retorne APENAS JSON:
+{ "bank": "Nome", "periodStart": "YYYY-MM-DD", "periodEnd": "YYYY-MM-DD",
+  "entries": [{ "date": "YYYY-MM-DD", "amount": 350.00, "description": "...", "type": "CREDIT" ou "DEBIT" }] }
 
-Retorne APENAS um JSON válido neste formato:
-{
-  "bank": "Nome do banco",
-  "periodStart": "YYYY-MM-DD",
-  "periodEnd": "YYYY-MM-DD",
-  "entries": [
-    {
-      "date": "YYYY-MM-DD",
-      "amount": 350.00,
-      "description": "Descrição do lançamento",
-      "type": "CREDIT" ou "DEBIT"
-    }
-  ]
-}
+CREDIT = entrada / DEBIT = saída. amount sempre positivo.`;
 
-REGRAS:
-- CREDIT = entrada de dinheiro (depósitos, PIX recebido, transferências recebidas)
-- DEBIT = saída de dinheiro (pagamentos, saques, tarifas)
-- amount sempre positivo (o type define se entra ou sai)
-- Se não conseguir identificar o banco, deixe "bank": null
-- Se o extrato estiver em imagem, use OCR para ler os valores
+    const isImage = fileType.startsWith('image/') || fileUrl.match(/\.(jpg|jpeg|png)$/i);
 
-Não inclua nenhum texto além do JSON.`;
+    const messages: any[] = [{
+      role: 'user',
+      content: isImage
+        ? [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: fileUrl } }]
+        : prompt,
+    }];
 
-    try {
-      // Se for imagem, enviar como image_url
-      const isImage = fileType.startsWith('image/') || fileUrl.match(/\.(jpg|jpeg|png)$/i);
-      
-      const messages: any[] = [
-        {
-          role: 'user',
-          content: isImage
-            ? [
-                { type: 'text', text: prompt },
-                { type: 'image_url', image_url: { url: fileUrl } },
-              ]
-            : prompt,
-        },
-      ];
+    const completion = await this.openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages,
+      temperature: 0.1,
+      max_tokens: 4000,
+    });
 
-      const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages,
-        temperature: 0.1,
-        max_tokens: 4000,
-      });
-
-      const content = completion.choices[0].message.content || '{}';
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      
-      if (!jsonMatch) throw new Error('IA não retornou JSON válido');
-      
-      return JSON.parse(jsonMatch[0]);
-    } catch (error) {
-      console.error('Erro IA:', error);
-      throw new Error('Falha ao extrair lançamentos');
-    }
+    const content = completion.choices[0].message.content || '{}';
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('IA não retornou JSON');
+    return JSON.parse(jsonMatch[0]);
   }
 
-  // 🏷️ Classificar lançamentos automaticamente
   private async classifyEntries(statementId: string, condominiumId: string) {
     const entries = await this.prisma.statementEntry.findMany({
       where: { statementId, aiCategory: null },
@@ -144,25 +129,17 @@ Não inclua nenhum texto além do JSON.`;
       select: { id: true, name: true, type: true },
     });
 
-    // Buscar histórico dos últimos 3 meses
     const history = await this.prisma.statementEntry.findMany({
-      where: {
-        statement: { condominiumId },
-        aiCategory: { not: null },
-        approved: true,
-      },
-      take: 100,
-      orderBy: { createdAt: 'desc' },
+      where: { statement: { condominiumId }, aiCategory: { not: null }, approved: true },
+      take: 100, orderBy: { createdAt: 'desc' },
       select: { description: true, aiCategory: true, type: true },
     });
 
     for (const entry of entries) {
       try {
         const classification = await this.classifyEntry(entry, categories, history);
-        
         if (classification) {
           const category = categories.find(c => c.name === classification.category);
-          
           await this.prisma.statementEntry.update({
             where: { id: entry.id },
             data: {
@@ -173,67 +150,43 @@ Não inclua nenhum texto além do JSON.`;
             },
           });
         }
-      } catch (error) {
-        console.error('Erro ao classificar:', entry.id, error.message);
-      }
+      } catch (error) {}
     }
   }
 
-  // 🧠 IA classifica um lançamento
   private async classifyEntry(entry: any, categories: any[], history: any[]) {
-    const categoriesList = categories.map(c => `- ${c.name} (${c.type})`).join('\n');
-    
-    const historySample = history.slice(0, 30).map(h => 
-      `"${h.description}" → ${h.aiCategory}`
-    ).join('\n');
+    const categoriesList = categories.map(c => `- ${c.name}`).join('\n');
+    const historySample = history.slice(0, 30).map(h => `"${h.description}" → ${h.aiCategory}`).join('\n');
 
-    const prompt = `Você é um classificador contábil.
+    const prompt = `Classificador contábil.
 
-LANÇAMENTO ATUAL:
-- Data: ${new Date(entry.date).toLocaleDateString('pt-BR')}
-- Valor: R$ ${entry.amount.toFixed(2)}
-- Tipo: ${entry.type === 'CREDIT' ? 'ENTRADA' : 'SAÍDA'}
-- Descrição: "${entry.description}"
+LANÇAMENTO: ${new Date(entry.date).toLocaleDateString('pt-BR')} | R$ ${entry.amount.toFixed(2)} | ${entry.type} | "${entry.description}"
 
-CATEGORIAS DISPONÍVEIS:
+CATEGORIAS:
 ${categoriesList}
 
-HISTÓRICO DE CLASSIFICAÇÕES ANTERIORES:
-${historySample || 'Sem histórico ainda'}
+HISTÓRICO:
+${historySample || 'Sem histórico'}
 
-INSTRUÇÕES:
-1. Se encontrar descrição similar no histórico, use a mesma categoria (matched: true)
-2. Caso contrário, escolha a categoria mais adequada
-3. Confiança de 0.0 a 1.0
+Responda APENAS JSON: { "category": "...", "confidence": 0.95, "matched": true }`;
 
-Responda APENAS com JSON:
-{ "category": "Nome da categoria", "confidence": 0.95, "matched": true }`;
+    const completion = await this.openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.1,
+      max_tokens: 150,
+    });
 
-    try {
-      const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.1,
-        max_tokens: 150,
-      });
-
-      const content = completion.choices[0].message.content || '{}';
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      
-      if (!jsonMatch) return null;
-      
-      return JSON.parse(jsonMatch[0]);
-    } catch (error) {
-      return null;
-    }
+    const content = completion.choices[0].message.content || '{}';
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    return JSON.parse(jsonMatch[0]);
   }
 
   async findAll(condominiumId: string) {
     return this.prisma.bankStatement.findMany({
       where: { condominiumId },
-      include: {
-        _count: { select: { entries: true } },
-      },
+      include: { _count: { select: { entries: true } } },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -243,20 +196,15 @@ Responda APENAS com JSON:
       where: { id },
       include: {
         entries: {
-          include: {
-            category: { select: { id: true, name: true, type: true } },
-          },
+          include: { category: { select: { id: true, name: true, type: true } } },
           orderBy: { date: 'asc' },
         },
       },
     });
   }
 
-  async updateEntry(entryId: string, data: { categoryId?: string; approved?: boolean; notes?: string }) {
-    return this.prisma.statementEntry.update({
-      where: { id: entryId },
-      data,
-    });
+  async updateEntry(entryId: string, data: any) {
+    return this.prisma.statementEntry.update({ where: { id: entryId }, data });
   }
 
   async approveAll(statementId: string) {
@@ -264,7 +212,6 @@ Responda APENAS com JSON:
       where: { statementId },
       data: { approved: true },
     });
-
     return this.prisma.bankStatement.update({
       where: { id: statementId },
       data: { status: 'APPROVED', approvedAt: new Date() },
@@ -275,4 +222,3 @@ Responda APENAS com JSON:
     return this.prisma.bankStatement.delete({ where: { id } });
   }
 }
-
