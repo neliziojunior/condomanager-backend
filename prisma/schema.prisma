@@ -195,8 +195,8 @@ model Income {
 
 model MaintenanceRequest {
   id          String        @id @default(uuid())
-  unitId      String
-  unit        Unit          @relation(fields: [unitId], references: [id])
+  unitId      String?       // ✅ Agora é OPCIONAL
+  unit        Unit?         @relation(fields: [unitId], references: [id])
   requesterId String
   requester   Person        @relation(fields: [requesterId], references: [id])
   title       String

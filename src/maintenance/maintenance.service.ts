@@ -6,7 +6,7 @@ export class MaintenanceService {
   constructor(private prisma: PrismaService) {}
 
   async create(condominiumId: string, data: {
-    unitId: string;
+    unitId?: string;
     title: string;
     description: string;
     priority?: string;
@@ -16,15 +16,22 @@ export class MaintenanceService {
       where: { syndicOfId: condominiumId, role: 'SYNDIC' }
     });
 
+    // ✅ Montar dados condicionalmente
+    const createData: any = {
+      title: data.title,
+      description: data.description,
+      priority: (data.priority as any) || 'MEDIUM',
+      photos: data.photos || [],
+      requester: { connect: { id: syndic?.id || '' } },
+    };
+
+    // ✅ Só adicionar unit se tiver unitId
+    if (data.unitId) {
+      createData.unit = { connect: { id: data.unitId } };
+    }
+
     return this.prisma.maintenanceRequest.create({
-      data: {
-        unit: { connect: { id: data.unitId } },
-        requester: { connect: { id: syndic?.id || '' } },
-        title: data.title,
-        description: data.description,
-        priority: (data.priority as any) || 'MEDIUM',
-        photos: data.photos || [],
-      },
+      data: createData,
       include: {
         unit: { select: { number: true } },
         requester: { select: { name: true } },
@@ -39,12 +46,17 @@ export class MaintenanceService {
     if (filters?.priority) where.priority = filters.priority;
     if (filters?.unitId) where.unitId = filters.unitId;
 
+    // Buscar unidades do condomínio
     const units = await this.prisma.unit.findMany({
       where: { condominiumId },
       select: { id: true }
     });
-    
-    where.unitId = { in: units.map(u => u.id) };
+
+    // Incluir chamados SEM unidade (área comum) + chamados das unidades do condomínio
+    where.OR = [
+      { unitId: { in: units.map(u => u.id) } },
+      { unitId: null }
+    ];
 
     return this.prisma.maintenanceRequest.findMany({
       where,
@@ -60,13 +72,6 @@ export class MaintenanceService {
     return this.prisma.maintenanceRequest.update({
       where: { id },
       data: { status: status as any },
-    });
-  }
-
-  async updatePriority(id: string, priority: string) {
-    return this.prisma.maintenanceRequest.update({
-      where: { id },
-      data: { priority: priority as any },
     });
   }
 
