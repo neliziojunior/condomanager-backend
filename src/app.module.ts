@@ -29,6 +29,7 @@ import { EmployeeModule } from './employee/employee.module'; // ✅ NOVO
 import { CompanyModule } from './company/company.module';
 import { ChargeModule } from './charge/charge.module';
 import { ReconciliationModule } from './bank-reconciliation/reconciliation.module';
+import { PayrollModule } from './payroll/payroll.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -62,7 +63,8 @@ import { AppController } from './app.controller';
     EmployeeModule,
     CompanyModule,
     ChargeModule,
-    ReconciliationModule, // ✅ NOVO
+    ReconciliationModule,
+    PayrollModule, // ✅ NOVO
   ],
   controllers: [AppController],
 })
