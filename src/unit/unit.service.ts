@@ -6,18 +6,37 @@ import * as bcrypt from 'bcrypt';
 export class UnitService {
   constructor(private prisma: PrismaService) {}
 
-  async create(condominiumId: string, data: { number: string; floor?: number; type?: any; area?: number }) {
+  async create(condominiumId: string, data: { 
+    number: string; 
+    block?: string;
+    floor?: number; 
+    type?: any; 
+    parkingSpots?: number;
+  }) {
     return this.prisma.unit.create({
       data: { ...data, condominiumId },
     });
   }
 
   async findAll(condominiumId: string) {
-    return this.prisma.unit.findMany({ where: { condominiumId }, orderBy: { number: 'asc' } });
+    return this.prisma.unit.findMany({ 
+      where: { condominiumId }, 
+      include: {
+        residents: { select: { id: true, name: true, email: true, phone: true, role: true } },
+        owner: { select: { id: true, name: true, email: true, phone: true } },
+      },
+      orderBy: { number: 'asc' } 
+    });
   }
 
   // ✅ EDITAR
-  async update(id: string, data: { number?: string; floor?: number; type?: any; area?: number }) {
+  async update(id: string, data: { 
+    number?: string; 
+    block?: string;
+    floor?: number; 
+    type?: any; 
+    parkingSpots?: number;
+  }) {
     const unit = await this.prisma.unit.findUnique({ where: { id } });
     if (!unit) throw new NotFoundException('Unidade não encontrada');
     return this.prisma.unit.update({ where: { id }, data });
@@ -30,7 +49,14 @@ export class UnitService {
   async addResident(unitId: string, data: { name: string; email: string; phone?: string; isOwner?: boolean }) {
     const hashedPassword = await bcrypt.hash('123456', 10);
     return this.prisma.person.create({
-      data: { ...data, password: hashedPassword, role: data.isOwner ? 'OWNER' : 'RESIDENT', unitId },
+      data: { 
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        password: hashedPassword, 
+        role: data.isOwner ? 'OWNER' : 'RESIDENT', 
+        unitId 
+      },
     });
   }
 
