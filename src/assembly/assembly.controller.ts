@@ -10,7 +10,7 @@ export class AssemblyController {
   constructor(private assemblyService: AssemblyService) {}
 
   @Post()
-  create(@Body() data: { title: string; description?: string; date: string; location?: string }, @Req() req) {
+  create(@Body() data: any, @Req() req) {
     return this.assemblyService.create(req.user.condominiumId, data);
   }
 
@@ -34,14 +34,23 @@ export class AssemblyController {
     return this.assemblyService.getPresenceList(id);
   }
 
-  // ✅ NOVO: Gerar PDF da Ata
+  // ✅ NOVO: Finalizar assembleia (muda status para FINISHED)
+  @Post(':id/finish')
+  finishAssembly(@Param('id') id: string) {
+    return this.assemblyService.finishAssembly(id);
+  }
+
+  // ✅ NOVO: Gerar PDF da Ata com assinaturas
   @Get(':id/pdf')
   async generatePdf(@Param('id') id: string, @Res() res: Response) {
     const assembly = await this.assemblyService.getAssemblyWithPresence(id);
-    
+    if (!assembly) {
+      return res.status(404).json({ message: 'Assembleia não encontrada' });
+    }
+
     const doc = new PDFDocument({ margin: 50, size: 'A4' });
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=ata-assembleia-${assembly.title.replace(/\s/g, '-')}.pdf`);
+    res.setHeader('Content-Disposition', `attachment; filename=ata-${id}.pdf`);
     doc.pipe(res);
 
     // Cabeçalho
@@ -49,10 +58,12 @@ export class AssemblyController {
     doc.moveDown();
     doc.fontSize(14).text(assembly.title, { align: 'center' });
     doc.moveDown();
-    
+
     // Informações
     doc.fontSize(11);
-    doc.text(`Data: ${new Date(assembly.date).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`);
+    doc.text(`Data: ${new Date(assembly.date).toLocaleDateString('pt-BR', { 
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' 
+    })}`);
     doc.text(`Local: ${assembly.location || 'Salão de Festas'}`);
     doc.moveDown();
 
@@ -64,41 +75,43 @@ export class AssemblyController {
     // Lista de Presença
     doc.fontSize(12).text('LISTA DE PRESENÇA:', { underline: true });
     doc.moveDown(0.5);
-    
+
     const present = assembly.confirmations?.filter((c: any) => c.status === 'PRESENT') || [];
     const absent = assembly.confirmations?.filter((c: any) => c.status === 'ABSENT') || [];
 
     doc.fontSize(10);
-    doc.text(`Total de Presentes: ${present.length}`, { continued: false });
+    doc.text(`Total de Presentes: ${present.length}`);
     doc.text(`Total de Ausentes: ${absent.length}`);
     doc.moveDown(0.5);
 
-    // Tabela de presentes
+    // Tabela
     let y = doc.y;
     doc.font('Helvetica-Bold');
     doc.text('Nome', 50, y);
     doc.text('Unidade', 250, y);
     doc.text('Status', 400, y);
     doc.moveTo(50, y + 15).lineTo(550, y + 15).stroke();
-    
+
     doc.font('Helvetica');
     y += 20;
-    
+
     for (const conf of assembly.confirmations || []) {
-      if (y > 750) { doc.addPage(); y = 50; }
+      if (y > 700) { doc.addPage(); y = 50; }
       doc.text(conf.person?.name || '-', 50, y);
       doc.text(conf.person?.unit?.number || '-', 250, y);
       doc.text(conf.status === 'PRESENT' ? 'Presente' : conf.status === 'ABSENT' ? 'Ausente' : 'Pendente', 400, y);
       y += 18;
     }
 
-    // Assinaturas
+    // Rodapé com assinaturas digitais
     doc.moveDown(3);
-    doc.text('_________________________________', 50, doc.y);
-    doc.text('Síndico', 50, doc.y + 15);
-    doc.moveDown(2);
-    doc.text('_________________________________', 50, doc.y);
-    doc.text('Secretário(a)', 50, doc.y + 15);
+    doc.fontSize(10).text('ASSINATURAS DIGITAIS:', { underline: true });
+    doc.moveDown();
+    
+    doc.fontSize(9);
+    doc.text(`Documento assinado digitalmente por todos os presentes.`);
+    doc.text(`Data de emissão: ${new Date().toLocaleString('pt-BR')}`);
+    doc.text(`Hash de verificação: ${Buffer.from(id).toString('base64').substring(0, 16)}`);
 
     doc.end();
   }

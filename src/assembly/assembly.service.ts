@@ -32,7 +32,6 @@ export class AssemblyService {
     });
   }
 
-  // ✅ NOVO: Buscar assembleia com lista de presença completa
   async getAssemblyWithPresence(id: string) {
     return this.prisma.assembly.findUnique({
       where: { id },
@@ -65,6 +64,14 @@ export class AssemblyService {
       where: { assemblyId },
       include: { person: { select: { id: true, name: true, email: true, role: true, unit: { select: { number: true } } } } },
       orderBy: { person: { name: 'asc' } },
+    });
+  }
+
+  // ✅ Finalizar assembleia (dentro da classe!)
+  async finishAssembly(id: string) {
+    return this.prisma.assembly.update({
+      where: { id },
+      data: { status: 'FINISHED' },
     });
   }
 }
