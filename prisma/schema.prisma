@@ -178,6 +178,13 @@ model Expense {
   aiSuggestionConfirmed Boolean?
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
+  isRecurring           Boolean      @default(false)
+  recurringDay          Int?
+  installment           Int?         // parcela atual
+  totalInstallments     Int?       // total de parcelas
+  paidAt                DateTime?
+  paidAmount            Float?
+  notes                 String?
 }
 
 model Income {
