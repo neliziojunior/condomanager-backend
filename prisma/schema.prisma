@@ -353,6 +353,10 @@ model ChatMessage {
   receiver       Person?     @relation("Receiver", fields: [receiverId], references: [id])
   content        String
   isGroup        Boolean     @default(false)
+  attachmentUrl  String?
+  attachmentType String?     // IMAGE, PDF, DOC
+  readAt         DateTime?
+  isDeleted      Boolean     @default(false)
   createdAt      DateTime    @default(now())
 }
 

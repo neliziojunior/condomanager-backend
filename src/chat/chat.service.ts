@@ -5,7 +5,13 @@ import { PrismaService } from '../prisma/prisma.service';
 export class ChatService {
   constructor(private prisma: PrismaService) {}
 
-  async sendMessage(condominiumId: string, senderId: string, data: { content: string; receiverId?: string }) {
+  // ✅ Enviar mensagem (grupo ou privada)
+  async sendMessage(condominiumId: string, senderId: string, data: {
+    content: string;
+    receiverId?: string;
+    attachmentUrl?: string;
+    attachmentType?: string;
+  }) {
     return this.prisma.chatMessage.create({
       data: {
         condominiumId,
@@ -13,6 +19,8 @@ export class ChatService {
         content: data.content,
         receiverId: data.receiverId || null,
         isGroup: !data.receiverId,
+        attachmentUrl: data.attachmentUrl,
+        attachmentType: data.attachmentType,
       },
       include: {
         sender: { select: { id: true, name: true } },
@@ -21,27 +29,119 @@ export class ChatService {
     });
   }
 
-  async getMessages(condominiumId: string, limit = 50) {
-    return this.prisma.chatMessage.findMany({
-      where: { condominiumId },
+  // ✅ Buscar mensagens (grupo OU conversa privada com pessoa específica)
+  async getMessages(condominiumId: string, currentUserId: string, options: {
+    withPersonId?: string;
+    search?: string;
+    limit?: number;
+  }) {
+    const where: any = {
+      condominiumId,
+      isDeleted: false,
+    };
+
+    // Filtro de busca
+    if (options.search) {
+      where.content = { contains: options.search, mode: 'insensitive' };
+    }
+
+    // ✅ Mensagens do grupo
+    if (!options.withPersonId) {
+      where.isGroup = true;
+    } else {
+      // ✅ Mensagens privadas entre dois usuários
+      where.isGroup = false;
+      where.OR = [
+        { senderId: currentUserId, receiverId: options.withPersonId },
+        { senderId: options.withPersonId, receiverId: currentUserId },
+      ];
+    }
+
+    const messages = await this.prisma.chatMessage.findMany({
+      where,
       include: {
         sender: { select: { id: true, name: true } },
         receiver: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: 'desc' },
-      take: limit,
+      take: options.limit || 50,
+    });
+
+    return messages.reverse(); // Mais antigas primeiro
+  }
+
+  // ✅ Marcar mensagens como lidas
+  async markAsRead(condominiumId: string, currentUserId: string, senderId: string) {
+    return this.prisma.chatMessage.updateMany({
+      where: {
+        condominiumId,
+        senderId,
+        receiverId: currentUserId,
+        readAt: null,
+      },
+      data: { readAt: new Date() },
     });
   }
 
-  async getResidents(condominiumId: string) {
-    const units = await this.prisma.unit.findMany({
-      where: { condominiumId },
-      include: {
-        residents: {
-          select: { id: true, name: true, email: true },
-        },
+  // ✅ Contador de mensagens não lidas
+  async getUnreadCount(condominiumId: string, currentUserId: string) {
+    return this.prisma.chatMessage.count({
+      where: {
+        condominiumId,
+        receiverId: currentUserId,
+        readAt: null,
+        isDeleted: false,
       },
     });
-    return units.flatMap(u => u.residents);
+  }
+
+  // ✅ Lista de contatos (moradores + admin) com contador de não lidas
+  async getContacts(condominiumId: string, currentUserId: string) {
+    const persons = await this.prisma.person.findMany({
+      where: {
+        id: { not: currentUserId },
+        OR: [
+          { unit: { condominiumId } },
+          { syndicOfId: condominiumId },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        unit: { select: { number: true } },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    // Contar não lidas por pessoa
+    const contacts = await Promise.all(
+      persons.map(async (p) => {
+        const unread = await this.prisma.chatMessage.count({
+          where: {
+            condominiumId,
+            senderId: p.id,
+            receiverId: currentUserId,
+            readAt: null,
+          },
+        });
+        return { ...p, unread };
+      }),
+    );
+
+    return contacts;
+  }
+
+  // ✅ Excluir mensagem (soft delete)
+  async deleteMessage(id: string, currentUserId: string) {
+    const message = await this.prisma.chatMessage.findUnique({ where: { id } });
+    if (!message || message.senderId !== currentUserId) {
+      throw new Error('Você só pode excluir suas próprias mensagens');
+    }
+
+    return this.prisma.chatMessage.update({
+      where: { id },
+      data: { isDeleted: true, content: 'Mensagem excluída' },
+    });
   }
 }
