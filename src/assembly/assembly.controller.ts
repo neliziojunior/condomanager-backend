@@ -34,13 +34,21 @@ export class AssemblyController {
     return this.assemblyService.getPresenceList(id);
   }
 
-  // ✅ NOVO: Finalizar assembleia (muda status para FINISHED)
   @Post(':id/finish')
   finishAssembly(@Param('id') id: string) {
     return this.assemblyService.finishAssembly(id);
   }
 
-  // ✅ NOVO: Gerar PDF da Ata com assinaturas
+  @Post(':id/sign')
+  addSignature(@Param('id') id: string, @Body('signatureData') signatureData: string, @Req() req) {
+    return this.assemblyService.addSignature(id, req.user.id, signatureData);
+  }
+
+  @Get(':id/check-signature')
+  checkSignature(@Param('id') id: string, @Req() req) {
+    return this.assemblyService.checkSignature(id, req.user.id);
+  }
+
   @Get(':id/pdf')
   async generatePdf(@Param('id') id: string, @Res() res: Response) {
     const assembly = await this.assemblyService.getAssemblyWithPresence(id);
@@ -53,26 +61,20 @@ export class AssemblyController {
     res.setHeader('Content-Disposition', `attachment; filename=ata-${id}.pdf`);
     doc.pipe(res);
 
-    // Cabeçalho
     doc.fontSize(18).text('ATA DE ASSEMBLEIA', { align: 'center' });
     doc.moveDown();
     doc.fontSize(14).text(assembly.title, { align: 'center' });
     doc.moveDown();
 
-    // Informações
     doc.fontSize(11);
-    doc.text(`Data: ${new Date(assembly.date).toLocaleDateString('pt-BR', { 
-      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' 
-    })}`);
+    doc.text(`Data: ${new Date(assembly.date).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`);
     doc.text(`Local: ${assembly.location || 'Salão de Festas'}`);
     doc.moveDown();
 
-    // Pauta
     doc.fontSize(12).text('PAUTA:', { underline: true });
     doc.fontSize(11).text(assembly.description || 'Não especificada');
     doc.moveDown();
 
-    // Lista de Presença
     doc.fontSize(12).text('LISTA DE PRESENÇA:', { underline: true });
     doc.moveDown(0.5);
 
@@ -84,7 +86,6 @@ export class AssemblyController {
     doc.text(`Total de Ausentes: ${absent.length}`);
     doc.moveDown(0.5);
 
-    // Tabela
     let y = doc.y;
     doc.font('Helvetica-Bold');
     doc.text('Nome', 50, y);
@@ -103,15 +104,40 @@ export class AssemblyController {
       y += 18;
     }
 
-    // Rodapé com assinaturas digitais
-    doc.moveDown(3);
-    doc.fontSize(10).text('ASSINATURAS DIGITAIS:', { underline: true });
+    // ✅ Página de assinaturas
+    doc.addPage();
+    doc.fontSize(14).text('ASSINATURAS DIGITAIS', { align: 'center', underline: true });
     doc.moveDown();
-    
-    doc.fontSize(9);
-    doc.text(`Documento assinado digitalmente por todos os presentes.`);
-    doc.text(`Data de emissão: ${new Date().toLocaleString('pt-BR')}`);
-    doc.text(`Hash de verificação: ${Buffer.from(id).toString('base64').substring(0, 16)}`);
+
+    const signatures = (assembly.signatures as any[]) || [];
+
+    if (signatures.length === 0) {
+      doc.fontSize(10).text('Nenhuma assinatura coletada ainda.', { align: 'center' });
+    } else {
+      doc.fontSize(10).text(`Total de assinaturas: ${signatures.length}`, { align: 'center' });
+      doc.moveDown();
+
+      for (let i = 0; i < signatures.length; i++) {
+        const sig = signatures[i];
+        if (doc.y > 700) { doc.addPage(); }
+
+        doc.fontSize(10).font('Helvetica-Bold').text(sig.name, 50, doc.y);
+        doc.font('Helvetica').fontSize(9).text(
+          `Assinado em ${new Date(sig.signedAt).toLocaleString('pt-BR')}`,
+          50,
+          doc.y + 2
+        );
+        doc.moveTo(300, doc.y - 5).lineTo(550, doc.y - 5).stroke();
+        doc.fontSize(8).text('Assinatura digital', 400, doc.y + 2);
+        doc.moveDown(2);
+      }
+    }
+
+    doc.moveDown(2);
+    doc.fontSize(8).font('Helvetica').text(
+      `Documento gerado em ${new Date().toLocaleString('pt-BR')} • Hash: ${Buffer.from(id).toString('base64').substring(0, 16)}`,
+      { align: 'center' }
+    );
 
     doc.end();
   }

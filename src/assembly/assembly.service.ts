@@ -67,11 +67,44 @@ export class AssemblyService {
     });
   }
 
-  // ✅ Finalizar assembleia (dentro da classe!)
   async finishAssembly(id: string) {
     return this.prisma.assembly.update({
       where: { id },
       data: { status: 'FINISHED' },
     });
+  }
+
+  async addSignature(assemblyId: string, personId: string, signatureData: string) {
+    const assembly = await this.prisma.assembly.findUnique({ where: { id: assemblyId } });
+    if (!assembly) throw new Error('Assembleia não encontrada');
+
+    const person = await this.prisma.person.findUnique({
+      where: { id: personId },
+      select: { name: true },
+    });
+
+    const currentSignatures = (assembly.signatures as any[]) || [];
+    const alreadySigned = currentSignatures.find((s: any) => s.personId === personId);
+    if (alreadySigned) throw new Error('Você já assinou esta ata');
+
+    const newSignature = {
+      personId,
+      name: person?.name || 'Morador',
+      signatureData,
+      signedAt: new Date().toISOString(),
+    };
+
+    return this.prisma.assembly.update({
+      where: { id: assemblyId },
+      data: { signatures: [...currentSignatures, newSignature] },
+    });
+  }
+
+  async checkSignature(assemblyId: string, personId: string) {
+    const assembly = await this.prisma.assembly.findUnique({ where: { id: assemblyId } });
+    if (!assembly) return { signed: false };
+    const signatures = (assembly.signatures as any[]) || [];
+    const signature = signatures.find((s: any) => s.personId === personId);
+    return { signed: !!signature, signature };
   }
 }
