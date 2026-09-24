@@ -1,31 +1,41 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from '@nestjs/common';
 import { NoticeService } from './notice.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { PrismaService } from '../prisma/prisma.service';
 
-@Controller('notifications')
+@Controller('notices')
 @UseGuards(JwtAuthGuard)
 export class NoticeController {
-  constructor(
-    private noticeService: NoticeService,
-    private prisma: PrismaService,
-  ) {}
+  constructor(private noticeService: NoticeService) {}
+
+  @Post()
+  create(@Body() data: any, @Req() req) {
+    return this.noticeService.create(req.user.condominiumId, req.user.id, data);
+  }
 
   @Get()
-  async getNotifications(@Req() req) {
-    const condominiumId = req.user.condominiumId;
+  findAll(
+    @Req() req,
+    @Query('category') category?: string,
+    @Query('activeOnly') activeOnly?: string,
+  ) {
+    return this.noticeService.findAll(req.user.condominiumId, {
+      category,
+      activeOnly: activeOnly === 'true',
+    });
+  }
 
-    const [pendingPackages, openMaintenance, overdueExpenses] = await Promise.all([
-      this.prisma.package.count({ where: { condominiumId, status: 'PENDING' } }),
-      this.prisma.maintenanceRequest.count({ where: { unit: { condominiumId }, status: 'OPEN' } }),
-      this.prisma.expense.count({ where: { condominiumId, status: 'PENDING', dueDate: { lt: new Date() } } }),
-    ]);
+  @Put(':id')
+  update(@Param('id') id: string, @Body() data: any) {
+    return this.noticeService.update(id, data);
+  }
 
-    return {
-      packages: pendingPackages,
-      maintenance: openMaintenance,
-      overdueExpenses,
-      total: pendingPackages + openMaintenance + overdueExpenses,
-    };
+  @Post(':id/view')
+  incrementViews(@Param('id') id: string) {
+    return this.noticeService.incrementViews(id);
+  }
+
+  @Delete(':id')
+  delete(@Param('id') id: string) {
+    return this.noticeService.delete(id);
   }
 }

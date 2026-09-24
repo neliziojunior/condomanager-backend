@@ -237,7 +237,10 @@ model Notice {
   category       String      @default("GENERAL")
   priority       String      @default("NORMAL")
   isActive       Boolean     @default(true)
+  pinnedUntil    DateTime?
   expiresAt      DateTime?
+  views          Int         @default(0)
+  createdById    String?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 }
@@ -360,8 +363,11 @@ model Poll {
   title          String
   description    String?
   options        String[]
+  allowMultiple  Boolean     @default(false)
+  isAnonymous    Boolean     @default(false)
   expiresAt      DateTime?
   isActive       Boolean     @default(true)
+  createdById    String?
   createdAt      DateTime    @default(now())
   votes          Vote[]
 }
@@ -369,10 +375,10 @@ model Poll {
 model Vote {
   id        String   @id @default(uuid())
   pollId    String
-  poll      Poll     @relation(fields: [pollId], references: [id])
+  poll      Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
   personId  String
   person    Person   @relation(fields: [personId], references: [id])
-  option    Int
+  options   Int[]    // ✅ Suporta múltiplas opções
   createdAt DateTime @default(now())
 
   @@unique([pollId, personId])

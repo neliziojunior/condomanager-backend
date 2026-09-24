@@ -5,25 +5,61 @@ import { PrismaService } from '../prisma/prisma.service';
 export class PollService {
   constructor(private prisma: PrismaService) {}
 
-  async create(condominiumId: string, data: { title: string; description?: string; options: string[]; expiresAt?: string }) {
+  async create(condominiumId: string, createdById: string, data: {
+    title: string;
+    description?: string;
+    options: string[];
+    expiresAt?: string;
+    allowMultiple?: boolean;
+    isAnonymous?: boolean;
+  }) {
     return this.prisma.poll.create({
-      data: { ...data, condominiumId, expiresAt: data.expiresAt ? new Date(data.expiresAt) : null },
+      data: {
+        condominiumId,
+        createdById,
+        title: data.title,
+        description: data.description,
+        options: data.options,
+        allowMultiple: data.allowMultiple || false,
+        isAnonymous: data.isAnonymous || false,
+        expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
+      },
     });
   }
 
   async findAll(condominiumId: string) {
-    return this.prisma.poll.findMany({
+    const polls = await this.prisma.poll.findMany({
       where: { condominiumId },
-      include: { votes: { select: { option: true, personId: true } } },
+      include: {
+        votes: true,
+      },
       orderBy: { createdAt: 'desc' },
+    });
+
+    return polls.map(poll => {
+      const totalVotes = poll.votes.length;
+      const results = poll.options.map((opt, i) => {
+        const votesForOption = poll.votes.filter(v => v.options.includes(i)).length;
+        return {
+          option: opt,
+          votes: votesForOption,
+          percentage: totalVotes > 0 ? (votesForOption / totalVotes) * 100 : 0,
+        };
+      });
+
+      return {
+        ...poll,
+        totalVotes,
+        results,
+      };
     });
   }
 
-  async vote(pollId: string, personId: string, option: number) {
+  async vote(pollId: string, personId: string, options: number[]) {
     return this.prisma.vote.upsert({
       where: { pollId_personId: { pollId, personId } },
-      update: { option },
-      create: { pollId, personId, option },
+      update: { options },
+      create: { pollId, personId, options },
     });
   }
 
@@ -32,13 +68,33 @@ export class PollService {
       where: { id: pollId },
       include: { votes: true },
     });
-    
-    const results = poll.options.map((opt, i) => ({
-      option: opt,
-      votes: poll.votes.filter(v => v.option === i).length,
-      percentage: poll.votes.length > 0 ? (poll.votes.filter(v => v.option === i).length / poll.votes.length) * 100 : 0,
-    }));
+    if (!poll) return null;
 
-    return { title: poll.title, total: poll.votes.length, results };
+    const totalVotes = poll.votes.length;
+    const results = poll.options.map((opt, i) => {
+      const votesForOption = poll.votes.filter(v => v.options.includes(i)).length;
+      return {
+        option: opt,
+        votes: votesForOption,
+        percentage: totalVotes > 0 ? (votesForOption / totalVotes) * 100 : 0,
+      };
+    });
+
+    return {
+      title: poll.title,
+      total: totalVotes,
+      results,
+    };
+  }
+
+  async close(id: string) {
+    return this.prisma.poll.update({
+      where: { id },
+      data: { isActive: false },
+    });
+  }
+
+  async delete(id: string) {
+    return this.prisma.poll.delete({ where: { id } });
   }
 }
