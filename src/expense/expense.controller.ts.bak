@@ -8,9 +8,6 @@ import { extname } from 'path';
 import { Response } from 'express';
 import { ExpenseService } from './expense.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CreateExpenseDto } from './dto/create-expense.dto';
-import { UpdateExpenseDto } from './dto/update-expense.dto';
-import { MarkPaidDto } from './dto/mark-paid.dto';
 import * as PDFDocument from 'pdfkit';
 
 @Controller('expenses')
@@ -19,12 +16,12 @@ export class ExpenseController {
   constructor(private expenseService: ExpenseService) {}
 
   @Post()
-  create(@Body() dto: CreateExpenseDto, @Req() req) {
+  create(@Body() dto: any, @Req() req) {
     return this.expenseService.create(dto, req.user.condominiumId);
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateExpenseDto) {
+  update(@Param('id') id: string, @Body() dto: any) {
     return this.expenseService.update(id, dto);
   }
 
@@ -34,7 +31,7 @@ export class ExpenseController {
   }
 
   @Post('suggest-category')
-  suggestCategory(@Body() dto: { description: string }, @Req() req) {
+  suggestCategory(@Body() dto: any, @Req() req) {
     return this.expenseService.suggestCategory(dto, req.user.condominiumId);
   }
 
@@ -77,8 +74,12 @@ export class ExpenseController {
   }
 
   @Post(':id/mark-paid')
-  markAsPaid(@Param('id') id: string, @Body() dto: MarkPaidDto) {
-    return this.expenseService.markAsPaid(id, dto.paymentDate, dto.paidAmount);
+  markAsPaid(
+    @Param('id') id: string,
+    @Body('paymentDate') paymentDate: string,
+    @Body('paidAmount') paidAmount?: number,
+  ) {
+    return this.expenseService.markAsPaid(id, paymentDate, paidAmount);
   }
 
   @Get('report/pdf')
