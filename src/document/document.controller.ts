@@ -20,7 +20,7 @@ export class DocumentController {
         cb(null, name + extname(file.originalname));
       }
     }),
-    limits: { fileSize: 10 * 1024 * 1024 }
+    limits: { fileSize: 20 * 1024 * 1024 }
   }))
   async upload(
     @UploadedFile() file: Express.Multer.File,
@@ -32,13 +32,18 @@ export class DocumentController {
       body.title,
       body.category,
       `/documents/file/${file.filename}`,
-      file.size
+      file.size,
+      req.user.id,
     );
   }
 
   @Get()
-  findAll(@Req() req, @Query('category') category?: string) {
-    return this.documentService.findAll(req.user.condominiumId, category);
+  findAll(
+    @Req() req,
+    @Query('category') category?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.documentService.findAll(req.user.condominiumId, category, search);
   }
 
   @Get('file/:filename')
