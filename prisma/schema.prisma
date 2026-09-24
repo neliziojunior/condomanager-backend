@@ -293,8 +293,12 @@ model Occurrence {
   title          String
   description    String
   type           String      @default("COMPLAINT")
+  priority       String      @default("MEDIUM")
   status         String      @default("OPEN")
   response       String?
+  respondedBy    String?
+  respondedAt    DateTime?
+  photos         String[]
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 }
