@@ -30,6 +30,7 @@ import { CompanyModule } from './company/company.module';
 import { ChargeModule } from './charge/charge.module';
 import { ReconciliationModule } from './bank-reconciliation/reconciliation.module';
 import { PayrollModule } from './payroll/payroll.module';
+import { FaqModule } from './faq/faq.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -64,7 +65,8 @@ import { AppController } from './app.controller';
     CompanyModule,
     ChargeModule,
     ReconciliationModule,
-    PayrollModule, // ✅ NOVO
+    PayrollModule,
+    FaqModule, // ✅ NOVO
   ],
   controllers: [AppController],
 })

@@ -88,6 +88,7 @@ model Condominium {
   companyId    String?
   company      Company?  @relation(fields: [companyId], references: [id])
   bankStatements BankStatement[]
+  faqEntries   FaqEntry[]
 }
 
 model Unit {
@@ -650,4 +651,17 @@ model StatementEntry {
   approved       Boolean       @default(false)
   notes          String?
   createdAt      DateTime      @default(now())
+}
+model FaqEntry {
+  id             String      @id @default(uuid())
+  condominiumId  String
+  condominium    Condominium @relation(fields: [condominiumId], references: [id])
+  question       String
+  answer         String
+  keywords       String[]    // Palavras-chave para busca
+  category       String      @default("GENERAL")
+  priority       Int         @default(0)
+  isActive       Boolean     @default(true)
+  timesUsed      Int         @default(0)
+  createdAt      DateTime    @default(now())
 }
