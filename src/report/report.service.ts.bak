@@ -30,12 +30,7 @@ export class ReportService {
       throw new BadRequestException('Arquivo deve ser PDF');
     }
 
-    const year = Number(dto.year);
-    const month = Number(dto.month);
-
-    if (isNaN(year) || isNaN(month)) {
-      throw new BadRequestException("year e month devem ser números");
-    }
+    const { year, month } = dto;
 
     // Verifica se já existe relatório desse mês
     const existing = await this.prisma.monthlyReport.findUnique({
