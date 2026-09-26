@@ -89,6 +89,7 @@ model Condominium {
   company      Company?  @relation(fields: [companyId], references: [id])
   bankStatements BankStatement[]
   faqEntries   FaqEntry[]
+  monthlyReports MonthlyReport[]   // ← ADICIONAR ESSA LINHA
 }
 
 model Unit {
@@ -685,4 +686,44 @@ model FaqEntry {
   isActive       Boolean     @default(true)
   timesUsed      Int         @default(0)
   createdAt      DateTime    @default(now())
+}
+// ═══════════════════════════════════════════════════════════════
+// MONTHLY REPORT — Prestação de contas mensal (importada de PDF)
+// ═══════════════════════════════════════════════════════════════
+model MonthlyReport {
+  id             String      @id @default(uuid())
+  condominiumId  String
+  condominium    Condominium @relation(fields: [condominiumId], references: [id])
+
+  // Referência temporal
+  year           Int
+  month          Int
+
+  // Origem do arquivo
+  sourceFileUrl  String                          // caminho do PDF salvo
+  sourceType     String      @default("BRCONDOMINIO") // BRCONDOMINIO | MANUAL | CSV
+  parserVersion  String      @default("v1")      // versionamento do parser
+
+  // Resumo financeiro do mês (extraído da Seção 5)
+  previousBalance Float      @default(0)
+  totalRevenues   Float      @default(0)
+  totalExpenses   Float      @default(0)
+  currentBalance  Float      @default(0)
+
+  // JSON completo com todas as seções extraídas
+  extractedData   Json?
+
+  // Status de processamento
+  status          String      @default("PROCESSING") // PROCESSING | REVIEW | APPROVED | FAILED
+  errorMessage    String?                            // se status = FAILED
+  confidence      Float?                             // 0-1
+
+  // Auditoria
+  importedAt      DateTime    @default(now())
+  approvedAt      DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@unique([condominiumId, year, month])
+  @@index([condominiumId, year, month])
 }

@@ -32,7 +32,6 @@ import { ReconciliationModule } from './bank-reconciliation/reconciliation.modul
 import { PayrollModule } from './payroll/payroll.module';
 import { FaqModule } from './faq/faq.module';
 import { AppController } from './app.controller';
-import { ReportModule } from './report/report.module';
 
 @Module({
   imports: [
@@ -68,7 +67,6 @@ import { ReportModule } from './report/report.module';
     ReconciliationModule,
     PayrollModule,
     FaqModule, // ✅ NOVO
-    ReportModule,
   ],
   controllers: [AppController],
 })
